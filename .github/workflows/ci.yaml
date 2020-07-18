@@ -1,0 +1,44 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  check_skip:
+    runs-on: ubuntu-18.04
+    if: "! contains(github.event.head_commit.message, '[ci skip]')"
+    steps:
+      - run: echo "${{ github.event.head_commit.message }}"
+  linter_and_test:
+    runs-on: ${{ matrix.os }}
+    needs: check_skip
+    strategy:
+      max-parallel: 20
+      matrix:
+        # os: [ubuntu-16.04, ubuntu-18.04]
+        os: [ubuntu-18.04]
+        python-version: [3.8]
+        # espnet-version: ["espnet", "git+https://github.com/espnet/espnet.git"]
+        espnet-version: ["git+https://github.com/espnet/espnet.git"]
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/cache@v1
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ matrix.espnet-version }}-${{ hashFiles('**/setup.py') }}
+      - uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: 'x64'
+      - name: install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -qq -y cmake g++-7 libsndfile1-dev bc
+      - name: install
+        env:
+          ESPNET_VERSION: ${{ matrix.espnet-version }}
+        run: |
+            pip install "${ESPNET_VERSION}"
+            pip install ".[test]"
+      - name: test python
+        run: |
+          ./ci/test_python.sh
