@@ -5,6 +5,8 @@ import shutil
 import tempfile
 from typing import Dict
 from typing import List
+from typing import Sequence
+from typing import Tuple
 from typing import Union
 
 import pandas as pd
@@ -68,46 +70,7 @@ def download(url, output_path, retry: int = 3, chunk_size: int = 8192):
 
 
 class ModelDownloader:
-    """Download model from zenodo and unpack
-
-    Examples:
-        >>> d = ModelDownloader("~/.cache/espnet")  # Specify cachedir
-        >>> d = ModelDownloader()  # <module_dir> is used as cachedir by default
-
-        To download and unpack a model file,
-        you need to input the model name which you want.
-
-        >>> d.get_model("user_name/model_name")
-        {"asr/config.yaml": <config path>, "asr/pretrain.pth": <model path>, ...}
-
-        Instead of using the model name, you can input the url directly
-
-        >>> d.get_model("https://zenodo.org/record/...")
-
-        You can also get a model with specifying some attributes.
-
-        >>> d.get_model(task="asr", corpus="wsj")
-
-        If multiple models are matched with the condition, latest model is selected.
-        You can also specify the model with "version" option.
-
-        >>> d.get_model(task="asr", corpus="wsj", version=-1)  # Get the latest model
-        >>> d.get_model(task="asr", corpus="wsj", version=-2)  # Get previous model
-
-        You can view uploaded model names from our Zenodo community,
-        https://zenodo.org/communities/espnet/
-
-        or,
-
-        >>> d.get_model_names()
-        [...]
-
-        You can also show them with specifying some attributes
-
-        >>> d.get_model_names(task="asr")
-        [...]
-
-    """
+    """Download model from zenodo and unpack."""
 
     def __init__(self, cachedir: Union[Path, str] = None):
         if cachedir is None:
@@ -123,13 +86,18 @@ class ModelDownloader:
         self.csv = cachedir / "table.csv"
         self.data_frame = pd.read_csv(cachedir / "table.csv")
 
+    def get_data_frame(self):
+        return self.data_frame
+
     def update_model_table(self):
         download(MODELS_URL, self.cachedir / "table.csv")
 
-    def get_model_names(self, **kwargs) -> List[str]:
+    def query(
+        self, key: Union[Sequence[str]], **kwargs
+    ) -> List[Union[str, Tuple[str]]]:
         conditions = None
-        for key, value in kwargs.items():
-            condition = self.data_frame[key] == str(value)
+        for k, v in kwargs.items():
+            condition = self.data_frame[k] == str(v)
             if conditions is None:
                 conditions = condition
             else:
@@ -137,12 +105,16 @@ class ModelDownloader:
 
         if conditions is not None:
             df = self.data_frame[conditions]
-            if len(df) == 0:
-                return []
-            else:
-                return list(df["name"])
         else:
-            return list(self.data_frame["name"])
+            df = self.data_frame
+
+        if len(df) == 0:
+            return []
+        else:
+            if isinstance(key, (tuple, list)):
+                return list(zip(*[df[k] for k in key]))
+            else:
+                return list(df[key])
 
     def get_model(
         self, name: str = None, version: int = -1, **kwargs: str

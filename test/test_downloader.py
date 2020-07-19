@@ -13,9 +13,9 @@ def test_update_model_table():
     d.update_model_table()
 
 
-def test_get_model_names():
+def test_get_data_frame():
     d = ModelDownloader()
-    d.get_model_names()
+    d.get_data_frame()
 
 
 def test_new_cachedir(tmp_path):
@@ -24,12 +24,17 @@ def test_new_cachedir(tmp_path):
 
 def test_get_model_names_with_condition():
     d = ModelDownloader()
-    d.get_model_names(task="asr")
+    d.query("name", task="asr")
+
+
+def test_get_model_names_and_urls():
+    d = ModelDownloader()
+    d.query(["name", "url"], task="asr")
 
 
 def test_get_model_names_non_matching():
     d = ModelDownloader()
-    assert d.get_model_names(task="dummy") == []
+    assert d.query("name", task="dummy") == []
 
 
 def test_get_model_with_url():

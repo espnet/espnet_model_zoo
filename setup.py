@@ -37,6 +37,11 @@ setup(
     long_description_content_type="text/markdown",
     license="Apache Software License",
     packages=find_packages(include=["espnet_model_zoo*"]),
+    entry_points={
+        'console_scripts':[
+            'espnet_zenodo_upload = espnet_model_zoo.zenodo_upload:main',
+        ],
+    },
     install_requires=install_requires,
     setup_requires=setup_requires,
     tests_require=tests_require,
