@@ -120,9 +120,7 @@ class ModelDownloader:
             else:
                 return list(df[key])
 
-    def get_model(
-        self, name: str = None, version: int = -1, **kwargs: str
-    ) -> Dict[str, Union[str, List[str]]]:
+    def download(self, name: str = None, version: int = -1, **kwargs: str) -> str:
         if name is None and len(kwargs) == 0:
             raise TypeError("No arguments are given")
 
@@ -192,8 +190,14 @@ class ModelDownloader:
                     warnings.warn("Not validating checksum")
             else:
                 warnings.warn("Not validating checksum")
+        return str(outdir / filename)
 
-        return unpack(outdir / filename, outdir)
+    def get_model(
+        self, name: str = None, version: int = -1, **kwargs: str
+    ) -> Dict[str, Union[str, List[str]]]:
+        filename = self.download(name, version=version, **kwargs)
+
+        return unpack(filename, Path(filename).parent)
 
 
 if __name__ == "__main__":
