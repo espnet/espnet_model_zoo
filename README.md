@@ -64,7 +64,7 @@ The model links are written in [table.csv](espnet_model_zoo/table.csv).
 If you need a model not existing in the csv file, you can obtain it from the URL directly.
 
 ```python
->>> d.get_model_names("https://zenodo.org/record/...")
+>>> d.get_model("https://zenodo.org/record/...")
 [...]
 ```
 
