@@ -86,6 +86,7 @@ You can also show them with specifying certain conditions.
 
     ```sh
     espnet_model_zoo_download <model_name> 
+    espnet_model_zoo_download --unpack true <model_name> 
     ```
 - `espnet_model_zoo_upload`
 
