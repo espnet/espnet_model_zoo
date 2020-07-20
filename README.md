@@ -123,4 +123,4 @@ If you need a model not existing in the csv file, you can obtain it from the URL
 
 ## Update your model
 
-If your model has some troubles, please modify the record at Zenodo directly or reupload a file using `espnet_zenodo_upload`.
+If your model has some troubles, please modify the record at Zenodo directly or reupload a correct file using `espnet_zenodo_upload` as another record.

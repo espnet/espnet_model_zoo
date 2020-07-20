@@ -1,3 +1,3 @@
 corpus,task,name,url,checksum,fs,lang,gender
-,,test,https://zenodo.org/record/3951085/files/test.zip?download=1,8246c3441b08838b72dd75f288821cbb,,,
+,,test,https://zenodo.org/record/3951842/files/test.zip?download=1,4b3dd907b27671ebe98755a98c70bcb2,,,
 mini_an4,asr,kamo-naoyuki/mini_an4_asr_train_raw_bpe_valid.acc.best,https://sandbox.zenodo.org/record/646767/files/asr_train_raw_bpe_valid.acc.best.zip?download=1,414d7e1c1bd5bc61e0e8363cf22abdd8,16000,en,

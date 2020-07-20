@@ -8,8 +8,8 @@ def test_download():
     download("http://example.com", "index.html")
 
 
-def test_update_model_table():
-    d = ModelDownloader()
+def test_update_model_table(tmp_path):
+    d = ModelDownloader(tmp_path)
     d.update_model_table()
 
 
@@ -39,7 +39,7 @@ def test_get_model_names_non_matching():
 
 def test_get_model_with_url():
     d = ModelDownloader()
-    d.get_model("https://zenodo.org/record/3951085/files/test.zip?download=1")
+    d.get_model("https://zenodo.org/record/3951842/files/test.zip?download=1")
 
 
 def test_get_model_with_name():

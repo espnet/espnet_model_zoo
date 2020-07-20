@@ -8,6 +8,7 @@ from typing import List
 from typing import Sequence
 from typing import Tuple
 from typing import Union
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -56,6 +57,8 @@ def download(url, output_path, retry: int = 3, chunk_size: int = 8192):
 
     # Raise error when connection error
     response.raise_for_status()
+
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
     # Write in temporary file
     with tempfile.TemporaryDirectory() as d, (Path(d) / "tmp").open("wb") as f:
@@ -157,15 +160,15 @@ class ModelDownloader:
         outdir = self.cachedir / str_to_hash(url)
 
         # Skip downloading and unpacking if the cache exists
-        meta_yaml = outdir / Path(filename).stem / "meta.yaml"
+        meta_yaml = outdir / "meta.yaml"
         if meta_yaml.exists():
             info = get_dict_from_cache(meta_yaml)
             if info is not None:
                 return info
 
         # Download the model file if not existing
-        if not (self.cachedir / filename).exists():
-            download(url, self.cachedir / filename)
+        if not (outdir / filename).exists():
+            download(url, outdir / filename)
 
             if len(self.data_frame["url"] == url) != 0:
                 checksum = list(
@@ -175,7 +178,7 @@ class ModelDownloader:
                     # MD5 checksum
                     sig = hashlib.md5()
                     chunk_size = 8192
-                    with open(self.cachedir / filename, "rb") as f:
+                    with open(outdir / filename, "rb") as f:
                         while True:
                             chunk = f.read(chunk_size)
                             if len(chunk) == 0:
@@ -183,14 +186,14 @@ class ModelDownloader:
                             sig.update(chunk)
 
                     if sig.hexdigest() != checksum:
-                        Path(self.cachedir / filename).unlink()
+                        Path(outdir / filename).unlink()
                         raise RuntimeError(f"Failed to download file: {url}")
                 else:
                     warnings.warn("Not validating checksum")
             else:
                 warnings.warn("Not validating checksum")
 
-        return unpack(self.cachedir / filename, outdir)
+        return unpack(outdir / filename, outdir)
 
 
 if __name__ == "__main__":
