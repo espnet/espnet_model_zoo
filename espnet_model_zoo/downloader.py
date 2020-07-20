@@ -9,6 +9,7 @@ from typing import Sequence
 from typing import Tuple
 from typing import Union
 
+import numpy as np
 import pandas as pd
 import requests
 from tqdm import tqdm
@@ -97,7 +98,7 @@ class ModelDownloader:
     ) -> List[Union[str, Tuple[str]]]:
         conditions = None
         for k, v in kwargs.items():
-            condition = self.data_frame[k] == str(v)
+            condition = self.data_frame[k] == v
             if conditions is None:
                 conditions = condition
             else:
@@ -131,7 +132,7 @@ class ModelDownloader:
 
             conditions = None
             for key, value in kwargs.items():
-                condition = self.data_frame[key] == str(value)
+                condition = self.data_frame[key] == value
                 if conditions is None:
                     conditions = condition
                 else:
@@ -166,22 +167,28 @@ class ModelDownloader:
         if not (self.cachedir / filename).exists():
             download(url, self.cachedir / filename)
 
-            # MD5 checksum
-            sig = hashlib.md5()
-            chunk_size = 8192
-            with open(self.cachedir / filename, "rb") as f:
-                while True:
-                    chunk = f.read(chunk_size)
-                    if len(chunk) == 0:
-                        break
-                    sig.update(chunk)
+            if len(self.data_frame["url"] == url) != 0:
+                checksum = list(
+                    self.data_frame[self.data_frame["url"] == url]["checksum"]
+                )[0]
+                if not np.isnan(checksum):
+                    # MD5 checksum
+                    sig = hashlib.md5()
+                    chunk_size = 8192
+                    with open(self.cachedir / filename, "rb") as f:
+                        while True:
+                            chunk = f.read(chunk_size)
+                            if len(chunk) == 0:
+                                break
+                            sig.update(chunk)
 
-            checksum = list(self.data_frame[self.data_frame["url"] == url]["checksum"])[
-                0
-            ]
-            if sig.hexdigest() != checksum:
-                Path(self.cachedir / filename).unlink()
-                raise RuntimeError(f"Failed to download file: {url}")
+                    if sig.hexdigest() != checksum:
+                        Path(self.cachedir / filename).unlink()
+                        raise RuntimeError(f"Failed to download file: {url}")
+                else:
+                    warnings.warn("Not validating checksum")
+            else:
+                warnings.warn("Not validating checksum")
 
         return unpack(self.cachedir / filename, outdir)
 
