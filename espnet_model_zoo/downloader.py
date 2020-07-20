@@ -19,8 +19,8 @@ from espnet2.main_funcs.pack_funcs import unpack
 
 
 MODELS_URL = (
-    "https://raw.githubusercontent.com/espnet/espnet_models/master/"
-    "espnet_models/table.csv"
+    "https://raw.githubusercontent.com/espnet/espnet_model_zoo/master/"
+    "espnet_model_zoo/table.csv"
 )
 
 
