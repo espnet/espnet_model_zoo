@@ -99,7 +99,7 @@ class ModelDownloader:
         download(MODELS_URL, self.cachedir / "table.csv")
 
     def query(
-        self, key: Union[Sequence[str]], **kwargs
+        self, key: Union[Sequence[str]] = "name", **kwargs
     ) -> List[Union[str, Tuple[str]]]:
         conditions = None
         for k, v in kwargs.items():
@@ -150,42 +150,57 @@ class ModelDownloader:
         url = list(urls)[version]
         return url
 
+    def _get_file_name(self, url):
+        ma = re.match(r"https://.*/([^/]*)\?download=[0-9]*$", url)
+        if ma is not None:
+            # URL e.g.
+            # https://sandbox.zenodo.org/record/646767/files/asr_train_raw_bpe_valid.acc.best.zip?download=1
+            return ma.groups()[0]
+        else:
+            r = requests.head(url)
+            if "Content-Disposition" in r.headers:
+                # e.g. attachment; filename=asr_train_raw_bpe_valid.acc.best.zip
+                for v in r.headers["Content-Disposition"].split(";"):
+                    if "filename=" in v:
+                        return v.split("filename=")[1].strip()
+
+            # if not specified or some error happens
+            return Path(url).name
+
     def download(self, name: str = None, version: int = -1, **kwargs: str) -> str:
         if name is not None and is_url(name):
             # Specify the downloading link directly. "kwargs" are ignored in this case.
             url = name
         else:
             url = self.get_url(name=name, version=version, **kwargs)
-        # URL e.g.
-        # https://sandbox.zenodo.org/record/646767/files/asr_train_raw_bpe_valid.acc.best.zip?download=1
-        filename = re.match(r"https://.*/([^/]*)\?download=[0-9]*$", url).groups()[0]
-        # Unpack to <cachedir>/<hash> in order to give an unique name
-        outdir = self.cachedir / str_to_hash(url)
 
+        outdir = self.cachedir / str_to_hash(url)
+        filename = self._get_file_name(url)
         # Download the model file if not existing
         if not (outdir / filename).exists():
             download(url, outdir / filename)
 
-            if len(self.data_frame["url"] == url) != 0:
-                checksum = list(
-                    self.data_frame[self.data_frame["url"] == url]["checksum"]
-                )[0]
-                if not np.isnan(checksum):
-                    # MD5 checksum
-                    sig = hashlib.md5()
-                    chunk_size = 8192
-                    with open(outdir / filename, "rb") as f:
-                        while True:
-                            chunk = f.read(chunk_size)
-                            if len(chunk) == 0:
-                                break
-                            sig.update(chunk)
+            # Write the url for debugging
+            with (outdir / "url").open("w", encoding="utf-8") as f:
+                f.write(url)
 
-                    if sig.hexdigest() != checksum:
-                        Path(outdir / filename).unlink()
-                        raise RuntimeError(f"Failed to download file: {url}")
-                else:
-                    warnings.warn("Not validating checksum")
+            r = requests.head(url)
+            if "Content-MD5" in r.headers:
+                checksum = r.headers["Content-MD5"]
+
+                # MD5 checksum
+                sig = hashlib.md5()
+                chunk_size = 8192
+                with open(outdir / filename, "rb") as f:
+                    while True:
+                        chunk = f.read(chunk_size)
+                        if len(chunk) == 0:
+                            break
+                        sig.update(chunk)
+
+                if sig.hexdigest() != checksum:
+                    Path(outdir / filename).unlink()
+                    raise RuntimeError(f"Failed to download file: {url}")
             else:
                 warnings.warn("Not validating checksum")
         return str(outdir / filename)
@@ -198,10 +213,6 @@ class ModelDownloader:
             url = name
         else:
             url = self.get_url(name=name, version=version, **kwargs)
-
-        # URL e.g.
-        # https://sandbox.zenodo.org/record/646767/files/asr_train_raw_bpe_valid.acc.best.zip?download=1
-        filename = re.match(r"https://.*/([^/]*)\?download=[0-9]*$", url).groups()[0]
         # Unpack to <cachedir>/<hash> in order to give an unique name
         outdir = self.cachedir / str_to_hash(url)
 
