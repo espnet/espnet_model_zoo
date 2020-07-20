@@ -38,8 +38,10 @@ setup(
     license="Apache Software License",
     packages=find_packages(include=["espnet_model_zoo*"]),
     entry_points={
-        'console_scripts':[
-            'espnet_zenodo_upload = espnet_model_zoo.zenodo_upload:main',
+        "console_scripts": [
+            "espnet_model_zoo_upload = espnet_model_zoo.zenodo_upload:main",
+            "espnet_model_zoo_download = espnet_model_zoo.downloader:cmd_download",
+            "espnet_model_zoo_query = espnet_model_zoo.downloader:cmd_query",
         ],
     },
     install_requires=install_requires,

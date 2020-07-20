@@ -1,5 +1,7 @@
 import pytest
 
+from espnet_model_zoo.downloader import cmd_download
+from espnet_model_zoo.downloader import cmd_query
 from espnet_model_zoo.downloader import download
 from espnet_model_zoo.downloader import ModelDownloader
 
@@ -57,3 +59,11 @@ def test_download_and_unpack_non_matching():
     d = ModelDownloader()
     with pytest.raises(RuntimeError):
         d.download_and_unpack(task="dummy")
+
+
+def test_cmd_download():
+    cmd_download(["test"])
+
+
+def test_query():
+    cmd_query([])

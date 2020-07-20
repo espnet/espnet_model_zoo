@@ -56,7 +56,7 @@ class Zenodo:
             f"{self.zenodo_url}/api/deposit/depositions/{deposition_id}",
             params=self.params,
             json={},
-            headers=self.headers
+            headers=self.headers,
         )
         if r.status_code != 200:
             raise RuntimeError(r.json()["message"])
@@ -269,6 +269,8 @@ def get_parser():
 
 
 def main(cmd=None):
+    # espnet_model_zoo_upload
+
     parser = get_parser()
     args = parser.parse_args(cmd)
 

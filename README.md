@@ -46,8 +46,17 @@ You can also specify the model using "version" option.
 >>> d.download_and_unpack(task="asr", corpus="wsj", version=-2)  # Get previous model
 ```
 
+You can also obtain it from the URL directly.
+
+```python
+>>> d.download_and_unpack("https://zenodo.org/record/...")
+[...]
+```
+
+## Query model names
+
 You can view the model names from our Zenodo community, https://zenodo.org/communities/espnet/, 
-or using `query()`,
+or using `query()`.  All information are written in [table.csv](espnet_model_zoo/table.csv). 
 
 ```python
 >>> d.query("name")
@@ -61,13 +70,31 @@ You can also show them with specifying certain conditions.
 [...]
 ```
 
-The model links are written in [table.csv](espnet_model_zoo/table.csv). 
-If you need a model not existing in the csv file, you can obtain it from the URL directly.
+## Command line tools
 
-```python
->>> d.download_and_unpack("https://zenodo.org/record/...")
-[...]
-```
+- `espnet_model_zoo_query`
+
+    ```sh
+    # Query model name
+    espnet_model_zoo_query --condition task=asr --condition corpus=wsj 
+    # Query the other key
+    espnet_model_zoo_query --key url --condition task=asr --condition corpus=wsj 
+    ```
+- `espnet_model_zoo_download`
+
+    ```sh
+    espnet_model_zoo_download <model_name> 
+    ```
+- `espnet_model_zoo_upload`
+
+    ```sh
+    export ACCESS_TOKEN=<access_token>
+    espnet_zenodo_upload \
+        --file <packed_model> \
+        --title <title> \
+        --description <description> \
+        --creator_name <your-git-account>
+    ```
 
 ## Use a pretrained model for inference
 
@@ -107,14 +134,6 @@ If you need a model not existing in the csv file, you can obtain it from the URL
     You can upload your own model by using `zenodo_upload` command freely, 
     but we normally upload a model using [each recipe](https://github.com/espnet/espnet/blob/master/egs2/TEMPLATE).
 
-    ```sh
-    export ACCESS_TOKEN=<access_token>
-    espnet_zenodo_upload \
-        --file <packed_model> \
-        --title <title> \
-        --description <description> \
-        --creator_name <your-git-account>
-    ```
 1. Create a Pull Request to modify [table.csv](espnet_model_zoo/table.csv)
 
     You need to append you record at the last line.

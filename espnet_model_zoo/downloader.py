@@ -1,3 +1,5 @@
+import argparse
+from distutils.util import strtobool
 import hashlib
 from pathlib import Path
 import re
@@ -215,3 +217,59 @@ class ModelDownloader:
 
         # Extract files from archived file
         return unpack(filename, outdir)
+
+
+def str2bool(v) -> bool:
+    return bool(strtobool(value))
+
+
+def cmd_download(cmd=None):
+    # espnet_model_zoo_download
+
+    parser = argparse.ArgumentParser("Download file from Zenodo")
+    parser.add_argument(
+        "name",
+        help="URL or model name in the form of <username>/<model name>. "
+        "e.g. kamo-naoyuki/mini_an4_asr_train_raw_bpe_valid.acc.best",
+    )
+    parser.add_argument(
+        "--cachedir", help="Specify cache dir. By default, download to module root.",
+    )
+    parser.add_argument(
+        "--unpack",
+        type=str2bool,
+        default=False,
+        help="Unpack the archived file after downloading.",
+    )
+    args = parser.parse_args(cmd)
+
+    d = ModelDownloader(args.cachedir)
+    if args.unpack:
+        print(d.download_and_unpack(args.name))
+    else:
+        print(d.download(args.name))
+
+
+def cmd_query(cmd=None):
+    # espnet_model_zoo_query
+
+    parser = argparse.ArgumentParser("Download file from Zenodo")
+    parser.add_argument(
+        "--key", default="name", help="The key name you want",
+    )
+    parser.add_argument(
+        "--condition",
+        action="append",
+        default=[],
+        help="Given desired condition in form of <key>=<value>. "
+        "e.g. --condition fs=16000",
+    )
+    parser.add_argument(
+        "--cachedir", help="Specify cache dir. By default, download to module root.",
+    )
+    args = parser.parse_args(cmd)
+
+    conditions = dict(s.split("=") for s in args.condition)
+    d = ModelDownloader(args.cachedir)
+    for v in d.query(args.key, **conditions):
+        print(v)
