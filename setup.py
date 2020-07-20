@@ -5,8 +5,7 @@ from setuptools import setup
 
 
 requirements = {
-    # NOTE(kamo): Not installing espnet from this module
-    "install": ["pandas", "requests", "tqdm", "numpy"],
+    "install": ["pandas", "requests", "tqdm", "numpy", "espnet"],
     "setup": ["pytest-runner"],
     "test": [
         "pytest>=3.3.0",

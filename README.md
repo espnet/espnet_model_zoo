@@ -13,8 +13,8 @@ This repository includes various models created by each user using [ESPnet](http
 ## Install
 
 ```
-pip install torch espnet
 pip install espnet_model_zoo
+pip install torch  # You need to install some modules manually
 ```
 
 ## Obtain a model
@@ -31,6 +31,8 @@ To obtain a model, you need to give a model in the form of `<user_name/model_nam
 >>> d.download_and_unpack("kamo-naoyuki/mini_an4_asr_train_raw_bpe_valid.acc.best")
 {"asr_train_config": <config path>, "asr_model_file": <model path>, ...}
 ```
+
+Note that if the model already exists, downloading and unpacking is skipped.
 
 You can also query a model with certain conditions.
 
