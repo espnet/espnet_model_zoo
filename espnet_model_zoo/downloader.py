@@ -120,49 +120,45 @@ class ModelDownloader:
             else:
                 return list(df[key])
 
-    def download(self, name: str = None, version: int = -1, **kwargs: str) -> str:
+    def get_url(self, name: str = None, version: int = -1, **kwargs: str) -> str:
         if name is None and len(kwargs) == 0:
             raise TypeError("No arguments are given")
 
+        if name is not None:
+            kwargs["name"] = name
+
+        conditions = None
+        for key, value in kwargs.items():
+            condition = self.data_frame[key] == value
+            if conditions is None:
+                conditions = condition
+            else:
+                conditions &= condition
+
+        # If no models satisfy the conditions, raise an error
+        if len(self.data_frame[conditions]) == 0:
+            message = f"Not found models: name={name}"
+            for key, value in kwargs.items():
+                message += f", {key}={value}"
+            raise RuntimeError(message)
+
+        urls = self.data_frame[conditions]["url"]
+        if version < 0:
+            version = len(urls) + version
+        url = list(urls)[version]
+        return url
+
+    def download(self, name: str = None, version: int = -1, **kwargs: str) -> str:
         if name is not None and is_url(name):
             # Specify the downloading link directly. "kwargs" are ignored in this case.
             url = name
         else:
-            if name is not None:
-                kwargs["name"] = name
-
-            conditions = None
-            for key, value in kwargs.items():
-                condition = self.data_frame[key] == value
-                if conditions is None:
-                    conditions = condition
-                else:
-                    conditions &= condition
-
-            # If no models satisfy the conditions, raise an error
-            if len(self.data_frame[conditions]) == 0:
-                message = f"Not found models: name={name}"
-                for key, value in kwargs.items():
-                    message += f", {key}={value}"
-                raise RuntimeError(message)
-
-            urls = self.data_frame[conditions]["url"]
-            if version < 0:
-                version = len(urls) + version
-            url = list(urls)[version]
-
+            url = self.get_url(name=name, version=version, **kwargs)
         # URL e.g.
         # https://sandbox.zenodo.org/record/646767/files/asr_train_raw_bpe_valid.acc.best.zip?download=1
         filename = re.match(r"https://.*/([^/]*)\?download=[0-9]*$", url).groups()[0]
         # Unpack to <cachedir>/<hash> in order to give an unique name
         outdir = self.cachedir / str_to_hash(url)
-
-        # Skip downloading and unpacking if the cache exists
-        meta_yaml = outdir / "meta.yaml"
-        if meta_yaml.exists():
-            info = get_dict_from_cache(meta_yaml)
-            if info is not None:
-                return info
 
         # Download the model file if not existing
         if not (outdir / filename).exists():
@@ -192,15 +188,30 @@ class ModelDownloader:
                 warnings.warn("Not validating checksum")
         return str(outdir / filename)
 
-    def get_model(
+    def download_and_unpack(
         self, name: str = None, version: int = -1, **kwargs: str
     ) -> Dict[str, Union[str, List[str]]]:
-        filename = self.download(name, version=version, **kwargs)
+        if name is not None and is_url(name):
+            # Specify the downloading link directly. "kwargs" are ignored in this case.
+            url = name
+        else:
+            url = self.get_url(name=name, version=version, **kwargs)
 
-        return unpack(filename, Path(filename).parent)
+        # URL e.g.
+        # https://sandbox.zenodo.org/record/646767/files/asr_train_raw_bpe_valid.acc.best.zip?download=1
+        filename = re.match(r"https://.*/([^/]*)\?download=[0-9]*$", url).groups()[0]
+        # Unpack to <cachedir>/<hash> in order to give an unique name
+        outdir = self.cachedir / str_to_hash(url)
 
+        # Skip downloading and unpacking if the cache exists
+        meta_yaml = outdir / "meta.yaml"
+        if meta_yaml.exists():
+            info = get_dict_from_cache(meta_yaml)
+            if info is not None:
+                return info
 
-if __name__ == "__main__":
-    d = ModelDownloader()
-    d.get_model_names()
-    print(d.get_model("kamo-naoyuki/for_test"))
+        # Download the file to an unique path
+        filename = self.download(url)
+
+        # Extract files from archived file
+        return unpack(filename, outdir)

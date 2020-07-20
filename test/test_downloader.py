@@ -22,7 +22,7 @@ def test_new_cachedir(tmp_path):
     ModelDownloader(tmp_path)
 
 
-def test_get_model_names_with_condition():
+def test_download_and_unpack_names_with_condition():
     d = ModelDownloader()
     d.query("name", task="asr")
 
@@ -37,23 +37,23 @@ def test_get_model_names_non_matching():
     assert d.query("name", task="dummy") == []
 
 
-def test_get_model_with_url():
+def test_download_and_unpack_with_url():
     d = ModelDownloader()
-    d.get_model("https://zenodo.org/record/3951842/files/test.zip?download=1")
+    d.download_and_unpack("https://zenodo.org/record/3951842/files/test.zip?download=1")
 
 
-def test_get_model_with_name():
+def test_download_and_unpack_with_name():
     d = ModelDownloader()
-    d.get_model("test")
+    d.download_and_unpack("test")
 
 
-def test_get_model_no_inputting():
+def test_download_and_unpack_no_inputting():
     d = ModelDownloader()
     with pytest.raises(TypeError):
-        d.get_model()
+        d.download_and_unpack()
 
 
-def test_get_model_non_matching():
+def test_download_and_unpack_non_matching():
     d = ModelDownloader()
     with pytest.raises(RuntimeError):
-        d.get_model(task="dummy")
+        d.download_and_unpack(task="dummy")

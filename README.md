@@ -28,22 +28,22 @@ pip install espnet_model_zoo
 To obtain a model, you need to give a model in the form of `<user_name/model_name>`
 
 ```python
->>> d.get_model("kamo-naoyuki/mini_an4_asr_train_raw_bpe_valid.acc.best")
+>>> d.download_and_unpack("kamo-naoyuki/mini_an4_asr_train_raw_bpe_valid.acc.best")
 {"asr_train_config": <config path>, "asr_model_file": <model path>, ...}
 ```
 
 You can also query a model with certain conditions.
 
 ```python
->>> d.get_model(task="asr", corpus="wsj")
+>>> d.download_and_unpack(task="asr", corpus="wsj")
 ```
 
 If multiple models are matched with the condition, latest model is selected.
 You can also specify the model using "version" option.
 
 ```python
->>> d.get_model(task="asr", corpus="wsj", version=-1)  # Get the latest model
->>> d.get_model(task="asr", corpus="wsj", version=-2)  # Get previous model
+>>> d.download_and_unpack(task="asr", corpus="wsj", version=-1)  # Get the latest model
+>>> d.download_and_unpack(task="asr", corpus="wsj", version=-2)  # Get previous model
 ```
 
 You can view the model names from our Zenodo community, https://zenodo.org/communities/espnet/, 
@@ -65,7 +65,7 @@ The model links are written in [table.csv](espnet_model_zoo/table.csv).
 If you need a model not existing in the csv file, you can obtain it from the URL directly.
 
 ```python
->>> d.get_model("https://zenodo.org/record/...")
+>>> d.download_and_unpack("https://zenodo.org/record/...")
 [...]
 ```
 
@@ -78,7 +78,7 @@ If you need a model not existing in the csv file, you can obtain it from the URL
 >>> from espnet_model_zoo.downloader import ModelDownloader
 >>> from espnet2.bin.asr_inference import Speech2Text
 >>> d = ModelDownloader()
->>> speech2text = Speech2Text(**d.get_model("user_name/model_name"))
+>>> speech2text = Speech2Text(**d.download_and_unpack("user_name/model_name"))
 
 >>> speech, rate = soundfile.read("speech.wav")
 >>> speech2text(speech)
@@ -92,7 +92,7 @@ If you need a model not existing in the csv file, you can obtain it from the URL
 >>> from espnet_model_zoo.downloader import ModelDownloader
 >>> from espnet2.bin.tts_inference import Text2Speech
 >>> d = ModelDownloader()
->>> text2speech = Text2Speech(**d.get_model("user_name/model_name"))
+>>> text2speech = Text2Speech(**d.download_and_unpack("user_name/model_name"))
 
 >>> retval = text2speech("foobar")
 >>> speech = retval[0]
