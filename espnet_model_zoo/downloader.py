@@ -60,8 +60,6 @@ def download(url, output_path, retry: int = 3, chunk_size: int = 8192):
     # Raise error when connection error
     response.raise_for_status()
 
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-
     # Write in temporary file
     with tempfile.TemporaryDirectory() as d, (Path(d) / "tmp").open("wb") as f:
         with tqdm(
@@ -72,6 +70,7 @@ def download(url, output_path, retry: int = 3, chunk_size: int = 8192):
                     f.write(chunk)
                     pbar.update(len(chunk))
 
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         shutil.move(Path(d) / "tmp", output_path)
 
 
@@ -85,18 +84,19 @@ class ModelDownloader:
             cachedir = Path(cachedir).expanduser().absolute()
         cachedir.mkdir(parents=True, exist_ok=True)
 
-        if not (cachedir / "table.csv").exists():
-            download(MODELS_URL, cachedir / "table.csv")
+        csv = Path(__file__).parent / "table.csv"
+        if not csv.exists():
+            download(MODELS_URL, csv)
 
         self.cachedir = cachedir
-        self.csv = cachedir / "table.csv"
-        self.data_frame = pd.read_csv(cachedir / "table.csv")
+        self.csv = csv
+        self.data_frame = pd.read_csv(csv)
 
     def get_data_frame(self):
         return self.data_frame
 
     def update_model_table(self):
-        download(MODELS_URL, self.cachedir / "table.csv")
+        download(MODELS_URL, csv)
 
     def query(
         self, key: Union[Sequence[str]] = "name", **kwargs
@@ -157,6 +157,7 @@ class ModelDownloader:
             # https://sandbox.zenodo.org/record/646767/files/asr_train_raw_bpe_valid.acc.best.zip?download=1
             return ma.groups()[0]
         else:
+            # If not Zenodo
             r = requests.head(url)
             if "Content-Disposition" in r.headers:
                 # e.g. attachment; filename=asr_train_raw_bpe_valid.acc.best.zip
@@ -231,7 +232,7 @@ class ModelDownloader:
 
 
 def str2bool(v) -> bool:
-    return bool(strtobool(value))
+    return bool(strtobool(v))
 
 
 def cmd_download(cmd=None):

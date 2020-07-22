@@ -27,6 +27,10 @@ test_spm.model
 *.vim
 *.swp
 
+# packaging related
+dist/
+*.egg-info
+
 espnet_model_zoo/*.zip
 espnet_model_zoo/*.tgz
 espnet_model_zoo/*.tar

@@ -1,6 +1,6 @@
 # ESPnet Model Zoo
 
-[![PyPI version](https://badge.fury.io/py/espnet_model_zoo.svg)](https://badge.fury.io/py/espnet_model_zoo)
+[![PyPI version](https://badge.fury.io/py/espnet-model-zoo.svg)](https://badge.fury.io/py/espnet-model-zoo)
 [![Python Versions](https://img.shields.io/pypi/pyversions/espnet_model_zoo.svg)](https://pypi.org/project/espnet_model_zoo/)
 [![Downloads](https://pepy.tech/badge/espnet_model_zoo)](https://pepy.tech/project/espnet_model_zoo)
 [![GitHub license](https://img.shields.io/github/license/espnet/espnet_model_zoo.svg)](https://github.com/espnet/espnet_model_zoo)
@@ -32,19 +32,19 @@ To obtain a model, you need to give a model in the form of `<user_name/model_nam
 {"asr_train_config": <config path>, "asr_model_file": <model path>, ...}
 ```
 
-Note that if the model already exists, downloading and unpacking is skipped.
+Note that if the model already exists, you can skip downloading and unpacking.
 
-You can also query a model with certain conditions.
+You can also get a model with certain conditions.
 
 ```python
 >>> d.download_and_unpack(task="asr", corpus="wsj")
 ```
 
-If multiple models are matched with the condition, latest model is selected.
-You can also specify the model using "version" option.
+If multiple models are found with the condition, the last model is selected.
+You can also specify the condition using "version" option.
 
 ```python
->>> d.download_and_unpack(task="asr", corpus="wsj", version=-1)  # Get the latest model
+>>> d.download_and_unpack(task="asr", corpus="wsj", version=-1)  # Get the last model
 >>> d.download_and_unpack(task="asr", corpus="wsj", version=-2)  # Get previous model
 ```
 
@@ -85,8 +85,8 @@ You can also show them with specifying certain conditions.
 - `espnet_model_zoo_download`
 
     ```sh
-    espnet_model_zoo_download <model_name> 
-    espnet_model_zoo_download --unpack true <model_name> 
+    espnet_model_zoo_download <model_name>  # Print the path of the downloaded file
+    espnet_model_zoo_download --unpack true <model_name>   # Print the path of unpacked files
     ```
 - `espnet_model_zoo_upload`
 
@@ -139,10 +139,11 @@ You can also show them with specifying certain conditions.
 
 1. Create a Pull Request to modify [table.csv](espnet_model_zoo/table.csv)
 
-    You need to append you record at the last line.
-1. Increment the third version number of [setup.py](setup.py), e.g. 0.0.3 -> 0.0.4
+    You need to append your record at the last line.
+1. (Administrator do) Increment the third version number of [setup.py](setup.py), e.g. 0.0.3 -> 0.0.4
+1. (Administrator do) Release new version
 
 
 ## Update your model
 
-If your model has some troubles, please modify the record at Zenodo directly or reupload a correct file using `espnet_zenodo_upload` as another record.
+If your model has some troubles, please modify the record at Zenodo directly or reupload a corrected file using `espnet_zenodo_upload` as another record.
