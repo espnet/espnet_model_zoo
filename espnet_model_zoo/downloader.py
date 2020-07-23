@@ -60,14 +60,15 @@ def download(url, output_path, retry: int = 3, chunk_size: int = 8192):
     response.raise_for_status()
 
     # Write in temporary file
-    with tempfile.TemporaryDirectory() as d, (Path(d) / "tmp").open("wb") as f:
-        with tqdm(
-            desc=url, total=file_size, unit="B", unit_scale=True, unit_divisor=1024,
-        ) as pbar:
-            for chunk in response.iter_content(chunk_size=chunk_size):
-                if chunk:
-                    f.write(chunk)
-                    pbar.update(len(chunk))
+    with tempfile.TemporaryDirectory() as d:
+        with (Path(d) / "tmp").open("wb") as f:
+            with tqdm(
+                desc=url, total=file_size, unit="B", unit_scale=True, unit_divisor=1024,
+            ) as pbar:
+                for chunk in response.iter_content(chunk_size=chunk_size):
+                    if chunk:
+                        f.write(chunk)
+                        pbar.update(len(chunk))
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         shutil.move(Path(d) / "tmp", output_path)
