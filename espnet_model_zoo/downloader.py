@@ -12,7 +12,6 @@ from typing import Tuple
 from typing import Union
 import warnings
 
-import numpy as np
 import pandas as pd
 import requests
 from tqdm import tqdm
@@ -96,7 +95,7 @@ class ModelDownloader:
         return self.data_frame
 
     def update_model_table(self):
-        download(MODELS_URL, csv)
+        download(MODELS_URL, self.csv)
 
     def query(
         self, key: Union[Sequence[str]] = "name", **kwargs
