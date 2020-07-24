@@ -140,8 +140,8 @@ You can also show them with specifying certain conditions.
 1. Create a Pull Request to modify [table.csv](espnet_model_zoo/table.csv)
 
     You need to append your record at the last line.
-1. (Administrator do) Increment the third version number of [setup.py](setup.py), e.g. 0.0.3 -> 0.0.4
-1. (Administrator do) Release new version
+1. (Administrator does) Increment the third version number of [setup.py](setup.py), e.g. 0.0.3 -> 0.0.4
+1. (Administrator does) Release new version
 
 
 ## Update your model
