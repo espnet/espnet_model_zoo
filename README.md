@@ -13,8 +13,8 @@ This repository includes various models created by each user using [ESPnet](http
 ## Install
 
 ```
+pip install torch
 pip install espnet_model_zoo
-pip install torch  # You need to install some modules manually
 ```
 
 ## Obtain a model
