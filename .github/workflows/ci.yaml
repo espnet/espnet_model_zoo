@@ -37,8 +37,11 @@ jobs:
         env:
           ESPNET_VERSION: ${{ matrix.espnet-version }}
         run: |
-            pip install "${ESPNET_VERSION}"
-            pip install ".[test]"
+          pip install "${ESPNET_VERSION}"
+          pip install ".[test]"
       - name: test python
         run: |
           ./ci/test_python.sh
+      - name: codecov
+        run: |
+          bash <(curl -s https://codecov.io/bash)
