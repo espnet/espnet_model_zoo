@@ -137,7 +137,7 @@ You can also show them with specifying certain conditions.
 1. Upload your model to Zenodo
 
     You need to [signup to Zenodo](https://zenodo.org/) and [create an access token](https://zenodo.org/account/settings/applications/tokens/new/) to upload models.
-    You can upload your own model by using `zenodo_upload` command freely, 
+    You can upload your own model by using `espnet_model_zoo_upload` command freely, 
     but we normally upload a model using [recipes](https://github.com/espnet/espnet/blob/master/egs2/TEMPLATE).
 
 1. Create a Pull Request to modify [table.csv](espnet_model_zoo/table.csv)
