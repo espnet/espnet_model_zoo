@@ -8,7 +8,10 @@
 [![codecov](https://codecov.io/gh/espnet/espnet_model_zoo/branch/master/graph/badge.svg)](https://codecov.io/gh/espnet/espnet_model_zoo)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-This repository includes various models created by each user using [ESPnet](https://github.com/espnet/espnet).
+Utilities managing the pretrained models created by [ESPnet](https://github.com/espnet/espnet).
+
+- Zenodo community: https://zenodo.org/communities/espnet/
+- Registered models: [table.csv](espnet_model_zoo/table.csv)
 
 ## Install
 
