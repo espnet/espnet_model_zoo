@@ -29,13 +29,14 @@ extras_require = {
 dirname = os.path.dirname(__file__)
 setup(
     name="espnet_model_zoo",
-    version="0.0.0a4",
+    version="0.0.0a5",
     url="http://github.com/espnet/espnet_model_zoo",
     description="ESPnet Model Zoo",
     long_description=open(os.path.join(dirname, "README.md"), encoding="utf-8").read(),
     long_description_content_type="text/markdown",
     license="Apache Software License",
     packages=find_packages(include=["espnet_model_zoo*"]),
+    package_data={"espnet_model_zoo": ["table.csv"]},
     entry_points={
         "console_scripts": [
             "espnet_model_zoo_upload = espnet_model_zoo.zenodo_upload:main",
