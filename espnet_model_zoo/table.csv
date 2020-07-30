@@ -1,4 +1,4 @@
 corpus,task,name,url,fs,lang,gender
 ,,test,https://zenodo.org/record/3951842/files/test.zip?download=1,,,
 mini_an4,asr,kamo-naoyuki/mini_an4_asr_train_raw_bpe_valid.acc.best,https://zenodo.org/record/3957940/files/asr_train_raw_bpe_valid.acc.best.zip?download=1,16000,en,
-librispeech,asr,Watanabe/librispeech_asr_train_asr_transformer_e18_raw_bpe_sp_valid.acc.best,https://zenodo.org/record/3966501/files/asr_train_asr_transformer_e18_raw_bpe_sp_valid.acc.best.zip?download=1,16000,en,
+librispeech,asr,Shinji Watanabe/librispeech_asr_train_asr_transformer_e18_raw_bpe_sp_valid.acc.best,https://zenodo.org/record/3966501/files/asr_train_asr_transformer_e18_raw_bpe_sp_valid.acc.best.zip?download=1,16000,en,
