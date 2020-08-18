@@ -8,7 +8,7 @@ jsut,tts,kan-bayashi/jsut_tts_train_fastspeech2_raw_phn_jaconv_pyopenjtalk_train
 csmsc,tts,kan-bayashi/csmsc_tts_train_tacotron2_raw_phn_pypinyin_g2p_phone_train.loss.best,https://zenodo.org/record/3969118/files/tts_train_tacotron2_raw_phn_pypinyin_g2p_phone_train.loss.best.zip?download=1,24000,zh,female
 csmsc,tts,kan-bayashi/csmsc_tts_train_fastspeech_raw_phn_pypinyin_g2p_phone_train.loss.best,https://zenodo.org/record/3986227/files/tts_train_fastspeech_raw_phn_pypinyin_g2p_phone_train.loss.best.zip?download=1,24000,zh,female
 csmsc,tts,kan-bayashi/csmsc_tts_train_fastspeech2_raw_phn_pypinyin_g2p_phone_train.loss.best,https://zenodo.org/record/3988918/files/tts_train_fastspeech2_raw_phn_pypinyin_g2p_phone_train.loss.best.zip?download=1,24000,zh,female
-ljspeech,tts,kan-bayashi/ljspeech_tts_train_tacotron2_raw_phn_tacotron_g2p_en_no_space_train.loss.best,https://zenodo.org/record/3969120/files/tts_train_tacotron2_raw_phn_tacotron_g2p_en_no_space_train.loss.best.zip?download=1,22050,en,female
+ljspeech,tts,kan-bayashi/ljspeech_tts_train_tacotron2_raw_phn_tacotron_g2p_en_no_space_train.loss.best,https://zenodo.org/record/3989498/files/tts_train_tacotron2_raw_phn_tacotron_g2p_en_no_space_train.loss.best.zip?download=1,22050,en,female
 ljspeech,tts,kan-bayashi/ljspeech_tts_train_fastspeech_raw_phn_tacotron_g2p_en_no_space_train.loss.best,https://zenodo.org/record/3986231/files/tts_train_fastspeech_raw_phn_tacotron_g2p_en_no_space_train.loss.best.zip?download=1,22050,en,female
 ljspeech,tts,kan-bayashi/ljspeech_tts_train_fastspeech2_raw_phn_tacotron_g2p_en_no_space_train.loss.best,https://zenodo.org/record/3988916/files/tts_train_fastspeech2_raw_phn_tacotron_g2p_en_no_space_train.loss.best.zip?download=1,22050,en,female
 vctk,tts,kan-bayashi/vctk_tts_train_gst_tacotron2_raw_phn_tacotron_g2p_en_no_space_train.loss.best,https://zenodo.org/record/3986237/files/tts_train_gst_tacotron2_raw_phn_tacotron_g2p_en_no_space_train.loss.best.zip?download=1,24000,en,
@@ -19,7 +19,7 @@ jsut,tts,kan-bayashi/jsut_fastspeech2,https://zenodo.org/record/3988923/files/tt
 csmsc,tts,kan-bayashi/csmsc_tacotron2,https://zenodo.org/record/3969118/files/tts_train_tacotron2_raw_phn_pypinyin_g2p_phone_train.loss.best.zip?download=1,24000,zh,female
 csmsc,tts,kan-bayashi/csmsc_fastspeech,https://zenodo.org/record/3986227/files/tts_train_fastspeech_raw_phn_pypinyin_g2p_phone_train.loss.best.zip?download=1,24000,zh,female
 csmsc,tts,kan-bayashi/csmsc_fastspeech2,https://zenodo.org/record/3988918/files/tts_train_fastspeech2_raw_phn_pypinyin_g2p_phone_train.loss.best.zip?download=1,24000,zh,female
-ljspeech,tts,kan-bayashi/ljspeech_tacotron2,https://zenodo.org/record/3969120/files/tts_train_tacotron2_raw_phn_tacotron_g2p_en_no_space_train.loss.best.zip?download=1,22050,en,female
+ljspeech,tts,kan-bayashi/ljspeech_tacotron2,https://zenodo.org/record/3989498/files/tts_train_tacotron2_raw_phn_tacotron_g2p_en_no_space_train.loss.best.zip?download=1,22050,en,female
 ljspeech,tts,kan-bayashi/ljspeech_fastspeech,https://zenodo.org/record/3986231/files/tts_train_fastspeech_raw_phn_tacotron_g2p_en_no_space_train.loss.best.zip?download=1,22050,en,female
 ljspeech,tts,kan-bayashi/ljspeech_fastspeech2,https://zenodo.org/record/3988916/files/tts_train_fastspeech2_raw_phn_tacotron_g2p_en_no_space_train.loss.best.zip?download=1,22050,en,female
 vctk,tts,kan-bayashi/vctk_gst_tacotron2,https://zenodo.org/record/3986237/files/tts_train_gst_tacotron2_raw_phn_tacotron_g2p_en_no_space_train.loss.best.zip?download=1,24000,en,
