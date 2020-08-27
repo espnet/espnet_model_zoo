@@ -23,9 +23,9 @@ pip install espnet_model_zoo
 ## Obtain a model
 
 ```python
->>> from espnet_model_zoo.downloader import ModelDownloader
->>> d = ModelDownloader("~/.cache/espnet")  # Specify cachedir
->>> d = ModelDownloader()  # <module_dir> is used as cachedir by default
+from espnet_model_zoo.downloader import ModelDownloader
+d = ModelDownloader("~/.cache/espnet")  # Specify cachedir
+d = ModelDownloader()  # <module_dir> is used as cachedir by default
 ```
 
 To obtain a model, you need to give a model in the form of `<user_name/model_name>`
@@ -40,22 +40,21 @@ Note that if the model already exists, you can skip downloading and unpacking.
 You can also get a model with certain conditions.
 
 ```python
->>> d.download_and_unpack(task="asr", corpus="wsj")
+d.download_and_unpack(task="asr", corpus="wsj")
 ```
 
 If multiple models are found with the condition, the last model is selected.
 You can also specify the condition using "version" option.
 
 ```python
->>> d.download_and_unpack(task="asr", corpus="wsj", version=-1)  # Get the last model
->>> d.download_and_unpack(task="asr", corpus="wsj", version=-2)  # Get previous model
+d.download_and_unpack(task="asr", corpus="wsj", version=-1)  # Get the last model
+d.download_and_unpack(task="asr", corpus="wsj", version=-2)  # Get previous model
 ```
 
 You can also obtain it from the URL directly.
 
 ```python
->>> d.download_and_unpack("https://zenodo.org/record/...")
-[...]
+d.download_and_unpack("https://zenodo.org/record/...")
 ```
 
 ## Query model names
@@ -64,15 +63,13 @@ You can view the model names from our Zenodo community, https://zenodo.org/commu
 or using `query()`.  All information are written in [table.csv](espnet_model_zoo/table.csv). 
 
 ```python
->>> d.query("name")
-[...]
+d.query("name")
 ```
 
 You can also show them with specifying certain conditions.
 
 ```python
->>> d.query("name", task="asr")
-[...]
+d.query("name", task="asr")
 ```
 
 ## Command line tools
@@ -107,29 +104,29 @@ You can also show them with specifying certain conditions.
 ### ASR
 
 ```python
->>> import soundfile
->>> from espnet_model_zoo.downloader import ModelDownloader
->>> from espnet2.bin.asr_inference import Speech2Text
->>> d = ModelDownloader()
->>> speech2text = Speech2Text(**d.download_and_unpack("user_name/model_name"))
+import soundfile
+from espnet_model_zoo.downloader import ModelDownloader
+from espnet2.bin.asr_inference import Speech2Text
+d = ModelDownloader()
+speech2text = Speech2Text(**d.download_and_unpack("user_name/model_name"))
 
->>> speech, rate = soundfile.read("speech.wav")
->>> speech2text(speech)
+speech, rate = soundfile.read("speech.wav")
+speech2text(speech)
 [(text, token, token_int, hypothesis object), ...]
 ```
 
 ### TTS
 
 ```python
->>> import soundfile
->>> from espnet_model_zoo.downloader import ModelDownloader
->>> from espnet2.bin.tts_inference import Text2Speech
->>> d = ModelDownloader()
->>> text2speech = Text2Speech(**d.download_and_unpack("user_name/model_name"))
+import soundfile
+from espnet_model_zoo.downloader import ModelDownloader
+from espnet2.bin.tts_inference import Text2Speech
+d = ModelDownloader()
+text2speech = Text2Speech(**d.download_and_unpack("user_name/model_name"))
 
->>> retval = text2speech("foobar")
->>> speech = retval[0]
->>> soundfile.write("out.wav", speech.numpy(), text2speech.fs, "PCM_16")
+retval = text2speech("foobar")
+speech = retval[0]
+soundfile.write("out.wav", speech.numpy(), text2speech.fs, "PCM_16")
 ```
 
 ## Register your model
