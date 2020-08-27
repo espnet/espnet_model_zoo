@@ -24,3 +24,4 @@ ljspeech,tts,kan-bayashi/ljspeech_fastspeech,https://zenodo.org/record/3986231/f
 ljspeech,tts,kan-bayashi/ljspeech_fastspeech2,https://zenodo.org/record/3988916/files/tts_train_fastspeech2_raw_phn_tacotron_g2p_en_no_space_train.loss.best.zip?download=1,22050,en,female
 vctk,tts,kan-bayashi/vctk_gst_tacotron2,https://zenodo.org/record/3986237/files/tts_train_gst_tacotron2_raw_phn_tacotron_g2p_en_no_space_train.loss.best.zip?download=1,24000,en,
 vctk,tts,kan-bayashi/vctk_gst_fastspeech,https://zenodo.org/record/3986241/files/tts_train_gst_fastspeech_raw_phn_tacotron_g2p_en_no_space_train.loss.best.zip?download=1,24000,en,
+wsj,asr,kamo-naoyuki/wsj,https://zenodo.org/record/4003381/files/asr_train_asr_transformer_raw_char_valid.acc.ave.zip?download=1,16000,en,
