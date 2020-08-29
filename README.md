@@ -152,7 +152,7 @@ git clone https://github.com/espnet/espnet
 cd egs2/wsj/asr1
 pip install -e .
 cd egs2/wsj/asr1
-./run.sh --skip_data_prep false --skip_train true --download_model kamo-naoyuki/wsj
+./run.sh --skip_data_prep true --skip_train false --download_model kamo-naoyuki/wsj
 ```
 
 ## Register your model
