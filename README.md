@@ -20,7 +20,7 @@ pip install torch
 pip install espnet_model_zoo
 ```
 
-## Python API
+## Python API for inference
 See the following section about `model_name`
 
 ### ASR
@@ -88,6 +88,18 @@ You can also obtain it from the URL directly.
 d.download_and_unpack("https://zenodo.org/record/...")
 ```
 
+If you need to use a local model file using this API, you can also give it. 
+
+```python
+d.download_and_unpack("./some/where/model.zip")
+```
+
+In this case, the contents are also expanded in the cache directory,
+but the model is identified by the file path, 
+so if you move the model to somewhere and unpack again, 
+it's treated as another model, 
+thus the contents are expanded again at another place.
+
 ## Query model names
 
 You can view the model names from our Zenodo community, https://zenodo.org/communities/espnet/, 
@@ -111,7 +123,7 @@ d.query("name", task="asr")
     # Query model name
     espnet_model_zoo_query task=asr corpus=wsj 
     # Query the other key
-    espnet_model_zoo_query --key url --condition task=asr --condition corpus=wsj 
+    espnet_model_zoo_query --key url task=asr corpus=wsj 
     ```
 - `espnet_model_zoo_download`
 

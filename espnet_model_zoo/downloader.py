@@ -42,8 +42,8 @@ def is_url(url: str) -> bool:
     return re.match(URL_REGEX, url) is not None
 
 
-def str_to_hash(string: str) -> str:
-    return hashlib.md5(string.encode("utf-8")).hexdigest()
+def str_to_hash(string: Union[str, Path]) -> str:
+    return hashlib.md5(str(string).encode("utf-8")).hexdigest()
 
 
 def download(url, output_path, retry: int = 3, chunk_size: int = 8192):
@@ -178,6 +178,36 @@ class ModelDownloader:
             # if not specified or some error happens
             return Path(url).name
 
+    def unpack_local_file(self, name: str = None) -> Dict[str, Union[str, List[str]]]:
+        if not Path(name).exists():
+            raise FileNotFoundError(f"No such file or directory: {name}")
+
+        warnings.warn(
+            "Expanding a local model to the cachedir. "
+            "If you'll move the file to another path, "
+            "it's treated as a different model."
+        )
+        name = Path(name).absolute()
+
+        outdir = self.cachedir / str_to_hash(name)
+        filename = outdir / name.name
+        outdir.mkdir(parents=True, exist_ok=True)
+
+        if not filename.exists():
+            if filename.is_symlink():
+                filename.unlink()
+            filename.symlink_to(name)
+
+        # Skip unpacking if the cache exists
+        meta_yaml = outdir / "meta.yaml"
+        if meta_yaml.exists():
+            info = get_dict_from_cache(meta_yaml)
+            if info is not None:
+                return info
+
+        # Extract files from archived file
+        return unpack(filename, outdir)
+
     def download(self, name: str = None, version: int = -1, **kwargs: str) -> str:
         if name is not None and is_url(name):
             # Specify the downloading link directly. "kwargs" are ignored in this case.
@@ -222,8 +252,15 @@ class ModelDownloader:
         if name is not None and is_url(name):
             # Specify the downloading link directly. "kwargs" are ignored in this case.
             url = name
+        elif name is not None and Path(name).exists() and len(kwargs) == 0:
+            return self.unpack_local_file(name)
         else:
             url = self.get_url(name=name, version=version, **kwargs)
+
+            # If the registered url is a file path
+            if not is_url(url) and Path(url).exists():
+                return self.unpack_local_file(url)
+
         # Unpack to <cachedir>/<hash> in order to give an unique name
         outdir = self.cachedir / str_to_hash(url)
 
