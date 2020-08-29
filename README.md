@@ -20,7 +20,38 @@ pip install torch
 pip install espnet_model_zoo
 ```
 
-## Obtain a model
+## Python API
+See the following section about `model_name`
+
+### ASR
+
+```python
+import soundfile
+from espnet_model_zoo.downloader import ModelDownloader
+from espnet2.bin.asr_inference import Speech2Text
+d = ModelDownloader()
+speech2text = Speech2Text(**d.download_and_unpack("model_name"))
+
+speech, rate = soundfile.read("speech.wav")
+speech2text(speech)
+[(text, token, token_int, hypothesis object), ...]
+```
+
+### TTS
+
+```python
+import soundfile
+from espnet_model_zoo.downloader import ModelDownloader
+from espnet2.bin.tts_inference import Text2Speech
+d = ModelDownloader()
+text2speech = Text2Speech(**d.download_and_unpack("model_name"))
+
+retval = text2speech("foobar")
+speech = retval[0]
+soundfile.write("out.wav", speech.numpy(), text2speech.fs, "PCM_16")
+```
+
+## Instruction for ModelDownloader
 
 ```python
 from espnet_model_zoo.downloader import ModelDownloader
@@ -28,7 +59,7 @@ d = ModelDownloader("~/.cache/espnet")  # Specify cachedir
 d = ModelDownloader()  # <module_dir> is used as cachedir by default
 ```
 
-To obtain a model, you need to give a model in the form of `<user_name/model_name>`
+To obtain a model, you need to give a model name, which is listed in [table.csv](espnet_model_zoo/table.csv). 
 
 ```python
 >>> d.download_and_unpack("kamo-naoyuki/mini_an4_asr_train_raw_bpe_valid.acc.best")
@@ -78,7 +109,7 @@ d.query("name", task="asr")
 
     ```sh
     # Query model name
-    espnet_model_zoo_query --condition task=asr --condition corpus=wsj 
+    espnet_model_zoo_query task=asr corpus=wsj 
     # Query the other key
     espnet_model_zoo_query --key url --condition task=asr --condition corpus=wsj 
     ```
@@ -99,34 +130,15 @@ d.query("name", task="asr")
         --creator_name <your-git-account>
     ```
 
-## Use a pretrained model for inference
+## Use pretrained model in ESPnet recipe
 
-### ASR
-
-```python
-import soundfile
-from espnet_model_zoo.downloader import ModelDownloader
-from espnet2.bin.asr_inference import Speech2Text
-d = ModelDownloader()
-speech2text = Speech2Text(**d.download_and_unpack("user_name/model_name"))
-
-speech, rate = soundfile.read("speech.wav")
-speech2text(speech)
-[(text, token, token_int, hypothesis object), ...]
-```
-
-### TTS
-
-```python
-import soundfile
-from espnet_model_zoo.downloader import ModelDownloader
-from espnet2.bin.tts_inference import Text2Speech
-d = ModelDownloader()
-text2speech = Text2Speech(**d.download_and_unpack("user_name/model_name"))
-
-retval = text2speech("foobar")
-speech = retval[0]
-soundfile.write("out.wav", speech.numpy(), text2speech.fs, "PCM_16")
+```sh
+# e.g. ASR WSJ task
+git clone https://github.com/espnet/espnet
+cd egs2/wsj/asr1
+pip install -e .
+cd egs2/wsj/asr1
+./run.sh --skip_data_prep false --skip_train true --download_model kamo-naoyuki/wsj
 ```
 
 ## Register your model
