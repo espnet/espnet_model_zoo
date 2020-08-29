@@ -63,7 +63,11 @@ def download(url, output_path, retry: int = 3, chunk_size: int = 8192):
     with tempfile.TemporaryDirectory() as d:
         with (Path(d) / "tmp").open("wb") as f:
             with tqdm(
-                desc=url, total=file_size, unit="B", unit_scale=True, unit_divisor=1024,
+                desc=url,
+                total=file_size,
+                unit="B",
+                unit_scale=True,
+                unit_divisor=1024,
             ) as pbar:
                 for chunk in response.iter_content(chunk_size=chunk_size):
                     if chunk:
@@ -90,7 +94,7 @@ class ModelDownloader:
 
         self.cachedir = cachedir
         self.csv = csv
-        self.data_frame = pd.read_csv(csv)
+        self.data_frame = pd.read_csv(csv, dtype=str)
 
     def get_data_frame(self):
         return self.data_frame
@@ -103,6 +107,12 @@ class ModelDownloader:
     ) -> List[Union[str, Tuple[str]]]:
         conditions = None
         for k, v in kwargs.items():
+            if k not in self.data_frame:
+                warnings.warn(
+                    f"Invalid key: {k}: Available keys:\n"
+                    f"{list(self.data_frame.keys())}"
+                )
+                continue
             condition = self.data_frame[k] == v
             if conditions is None:
                 conditions = condition
@@ -245,7 +255,8 @@ def cmd_download(cmd=None):
         "e.g. kamo-naoyuki/mini_an4_asr_train_raw_bpe_valid.acc.best",
     )
     parser.add_argument(
-        "--cachedir", help="Specify cache dir. By default, download to module root.",
+        "--cachedir",
+        help="Specify cache dir. By default, download to module root.",
     )
     parser.add_argument(
         "--unpack",
@@ -266,18 +277,23 @@ def cmd_query(cmd=None):
     # espnet_model_zoo_query
 
     parser = argparse.ArgumentParser("Download file from Zenodo")
+
     parser.add_argument(
-        "--key", default="name", help="The key name you want",
-    )
-    parser.add_argument(
-        "--condition",
+        "condition",
         action="append",
         default=[],
         help="Given desired condition in form of <key>=<value>. "
-        "e.g. --condition fs=16000",
+        "e.g. fs=16000. "
+        "If no condition is given, you can view all available models",
     )
     parser.add_argument(
-        "--cachedir", help="Specify cache dir. By default, download to module root.",
+        "--key",
+        default="name",
+        help="The key name you want",
+    )
+    parser.add_argument(
+        "--cachedir",
+        help="Specify cache dir. By default, download to module root.",
     )
     args = parser.parse_args(cmd)
 
