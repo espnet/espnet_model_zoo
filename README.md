@@ -122,6 +122,8 @@ d.query("name", task="asr")
     ```sh
     # Query model name
     espnet_model_zoo_query task=asr corpus=wsj 
+    # Show all model name
+    espnet_model_zoo_query
     # Query the other key
     espnet_model_zoo_query --key url task=asr corpus=wsj 
     ```
