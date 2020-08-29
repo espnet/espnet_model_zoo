@@ -160,12 +160,14 @@ class ModelDownloader:
         url = list(urls)[version]
         return url
 
-    def _get_file_name(self, url):
+    @staticmethod
+    def _get_file_name(url):
         ma = re.match(r"https://.*/([^/]*)\?download=[0-9]*$", url)
         if ma is not None:
             # URL e.g.
             # https://sandbox.zenodo.org/record/646767/files/asr_train_raw_bpe_valid.acc.best.zip?download=1
-            return ma.groups()[0]
+            a = ma.groups()[0]
+            return a
         else:
             # If not Zenodo
             r = requests.head(url)
@@ -252,12 +254,16 @@ class ModelDownloader:
         if name is not None and is_url(name):
             # Specify the downloading link directly. "kwargs" are ignored in this case.
             url = name
-        elif name is not None and Path(name).exists() and len(kwargs) == 0:
-            return self.unpack_local_file(name)
         else:
-            url = self.get_url(name=name, version=version, **kwargs)
+            try:
+                url = self.get_url(name=name, version=version, **kwargs)
+            except RuntimeError:
+                if name is not None and Path(name).exists() and len(kwargs) == 0:
+                    return self.unpack_local_file(name)
+                else:
+                    raise
 
-            # If the registered url is a file path
+            # If the registered url in table.csv is a file path
             if not is_url(url) and Path(url).exists():
                 return self.unpack_local_file(url)
 
@@ -317,7 +323,7 @@ def cmd_query(cmd=None):
 
     parser.add_argument(
         "condition",
-        action="append",
+        nargs="*",
         default=[],
         help="Given desired condition in form of <key>=<value>. "
         "e.g. fs=16000. "

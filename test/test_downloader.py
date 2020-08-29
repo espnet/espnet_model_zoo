@@ -61,6 +61,12 @@ def test_download_and_unpack_non_matching():
         d.download_and_unpack(task="dummy")
 
 
+def test_download_and_unpack_local_file():
+    d = ModelDownloader()
+    path = d.download("test")
+    d.download_and_unpack(path)
+
+
 def test_cmd_download():
     cmd_download(["test"])
 
