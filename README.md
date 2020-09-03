@@ -4,7 +4,8 @@
 [![Python Versions](https://img.shields.io/pypi/pyversions/espnet_model_zoo.svg)](https://pypi.org/project/espnet_model_zoo/)
 [![Downloads](https://pepy.tech/badge/espnet_model_zoo)](https://pepy.tech/project/espnet_model_zoo)
 [![GitHub license](https://img.shields.io/github/license/espnet/espnet_model_zoo.svg)](https://github.com/espnet/espnet_model_zoo)
-![CI](https://github.com/espnet/espnet_model_zoo/workflows/CI/badge.svg)
+[![Unitest](https://github.com/espnet/espnet_model_zoo/workflows/Unitest/badge.svg)](https://github.com/espnet/espnet_model_zoo/actions?query=workflow%3AUnitest)
+[![Model test](https://github.com/espnet/espnet_model_zoo/workflows/Model%20test/badge.svg)](https://github.com/espnet/espnet_model_zoo/actions?query=workflow%3A%22Model+test%22)
 [![codecov](https://codecov.io/gh/espnet/espnet_model_zoo/branch/master/graph/badge.svg)](https://codecov.io/gh/espnet/espnet_model_zoo)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
