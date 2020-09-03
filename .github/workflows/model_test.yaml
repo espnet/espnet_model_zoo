@@ -37,7 +37,7 @@ jobs:
           ESPNET_VERSION: ${{ matrix.espnet-version }}
         run: |
           pip install "${ESPNET_VERSION}"
-          pip install "."
-      - name: test python
+          pip install ".[test]"
+      - name: test model
         run: |
-          ./ci/test_model.sh
+          pytest ./ci/test_model.py
