@@ -41,6 +41,7 @@ jobs:
           pip install torch
           pip install ".[test]"
       - name: install pyopenjtalk
+        run: |
           mkdir pyopenjtalk
           cd pyopenjtalk
           wget https://raw.githubusercontent.com/espnet/espnet/master/tools/installers/install_pyopenjtalk.sh
