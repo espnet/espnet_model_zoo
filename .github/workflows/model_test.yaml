@@ -37,6 +37,7 @@ jobs:
           ESPNET_VERSION: ${{ matrix.espnet-version }}
         run: |
           pip install "${ESPNET_VERSION}"
+          pip install torch
           pip install ".[test]"
       - name: test model
         run: |
