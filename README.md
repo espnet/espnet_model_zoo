@@ -33,8 +33,9 @@ d = ModelDownloader()
 speech2text = Speech2Text(**d.download_and_unpack("model_name"))
 
 speech, rate = soundfile.read("speech.wav")
-speech2text(speech)
-[(text, token, token_int, hypothesis object), ...]
+nbests = speech2text(speech)
+text, *_ = nbests[0]
+print(text)
 ```
 
 ### TTS
@@ -46,8 +47,7 @@ from espnet2.bin.tts_inference import Text2Speech
 d = ModelDownloader()
 text2speech = Text2Speech(**d.download_and_unpack("model_name"))
 
-retval = text2speech("foobar")
-speech = retval[0]
+speech, *_ = text2speech("foobar")
 soundfile.write("out.wav", speech.numpy(), text2speech.fs, "PCM_16")
 ```
 
