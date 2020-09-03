@@ -1,4 +1,4 @@
-name: CI
+name: Unitest
 
 on: [push, pull_request]
 
