@@ -36,6 +36,7 @@ jobs:
         env:
           ESPNET_VERSION: ${{ matrix.espnet-version }}
         run: |
+          pip install -U pip setuptools wheel
           pip install "${ESPNET_VERSION}"
           pip install ".[test]"
       - name: test python

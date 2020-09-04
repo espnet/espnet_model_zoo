@@ -63,7 +63,11 @@ def download(url, output_path, retry: int = 3, chunk_size: int = 8192):
     with tempfile.TemporaryDirectory() as d:
         with (Path(d) / "tmp").open("wb") as f:
             with tqdm(
-                desc=url, total=file_size, unit="B", unit_scale=True, unit_divisor=1024,
+                desc=url,
+                total=file_size,
+                unit="B",
+                unit_scale=True,
+                unit_divisor=1024,
             ) as pbar:
                 for chunk in response.iter_content(chunk_size=chunk_size):
                     if chunk:
@@ -294,7 +298,8 @@ def cmd_download(cmd=None):
         "e.g. kamo-naoyuki/mini_an4_asr_train_raw_bpe_valid.acc.best",
     )
     parser.add_argument(
-        "--cachedir", help="Specify cache dir. By default, download to module root.",
+        "--cachedir",
+        help="Specify cache dir. By default, download to module root.",
     )
     parser.add_argument(
         "--unpack",
@@ -325,10 +330,13 @@ def cmd_query(cmd=None):
         "If no condition is given, you can view all available models",
     )
     parser.add_argument(
-        "--key", default="name", help="The key name you want",
+        "--key",
+        default="name",
+        help="The key name you want",
     )
     parser.add_argument(
-        "--cachedir", help="Specify cache dir. By default, download to module root.",
+        "--cachedir",
+        help="Specify cache dir. By default, download to module root.",
     )
     args = parser.parse_args(cmd)
 

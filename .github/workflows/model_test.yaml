@@ -37,6 +37,7 @@ jobs:
         env:
           ESPNET_VERSION: ${{ matrix.espnet-version }}
         run: |
+          pip install -U pip setuptools wheel
           pip install "${ESPNET_VERSION}"
           pip install torch
           pip install ".[test]"
@@ -49,4 +50,5 @@ jobs:
           ./install_pyopenjtalk.sh
       - name: test model
         run: |
+          export LD_LIBRARY_PATH=$(pwd)/pyopenjtalk/lib:${LD_LIBRARY_PATH}
           pytest ./ci/test_model.py
