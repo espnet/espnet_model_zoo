@@ -102,6 +102,11 @@ class ModelDownloader:
     def update_model_table(self):
         download(MODELS_URL, self.csv)
 
+    def clean_cache(self, name: str = None, version: int = -1, **kwargs: str):
+        url = self.get_url(name=name, version=version, **kwargs)
+        outdir = self.cachedir / str_to_hash(url)
+        shutil.rmtree(outdir)
+
     def query(
         self, key: Union[Sequence[str]] = "name", **kwargs
     ) -> List[Union[str, Tuple[str]]]:
@@ -136,28 +141,37 @@ class ModelDownloader:
         if name is None and len(kwargs) == 0:
             raise TypeError("No arguments are given")
 
-        if name is not None:
-            kwargs["name"] = name
+        if name is not None and is_url(name):
+            # Specify the downloading link directly. "kwargs" are ignored in this case.
+            url = name
 
-        conditions = None
-        for key, value in kwargs.items():
-            condition = self.data_frame[key] == value
-            if conditions is None:
-                conditions = condition
-            else:
-                conditions &= condition
+        else:
+            if name is not None:
+                kwargs["name"] = name
 
-        # If no models satisfy the conditions, raise an error
-        if len(self.data_frame[conditions]) == 0:
-            message = f"Not found models: name={name}"
+            conditions = None
             for key, value in kwargs.items():
-                message += f", {key}={value}"
-            raise RuntimeError(message)
+                condition = self.data_frame[key] == value
+                if conditions is None:
+                    conditions = condition
+                else:
+                    conditions &= condition
 
-        urls = self.data_frame[conditions]["url"]
-        if version < 0:
-            version = len(urls) + version
-        url = list(urls)[version]
+            if len(self.data_frame[conditions]) == 0:
+                # If Specifying local file path
+                if name is not None and Path(name).exists() and len(kwargs) == 1:
+                    url = str(Path(name).absolute())
+                # If no models satisfy the conditions, raise an error
+                else:
+                    message = "Not found models:"
+                    for key, value in kwargs.items():
+                        message += f" {key}={value}"
+                    raise RuntimeError(message)
+            else:
+                urls = self.data_frame[conditions]["url"]
+                if version < 0:
+                    version = len(urls) + version
+                url = list(urls)[version]
         return url
 
     @staticmethod
@@ -211,11 +225,9 @@ class ModelDownloader:
         return unpack(filename, outdir)
 
     def download(self, name: str = None, version: int = -1, **kwargs: str) -> str:
-        if name is not None and is_url(name):
-            # Specify the downloading link directly. "kwargs" are ignored in this case.
-            url = name
-        else:
-            url = self.get_url(name=name, version=version, **kwargs)
+        url = self.get_url(name=name, version=version, **kwargs)
+        if not is_url(url) and Path(url).exists():
+            return url
 
         outdir = self.cachedir / str_to_hash(url)
         filename = self._get_file_name(url)
@@ -251,21 +263,9 @@ class ModelDownloader:
     def download_and_unpack(
         self, name: str = None, version: int = -1, **kwargs: str
     ) -> Dict[str, Union[str, List[str]]]:
-        if name is not None and is_url(name):
-            # Specify the downloading link directly. "kwargs" are ignored in this case.
-            url = name
-        else:
-            try:
-                url = self.get_url(name=name, version=version, **kwargs)
-            except RuntimeError:
-                if name is not None and Path(name).exists() and len(kwargs) == 0:
-                    return self.unpack_local_file(name)
-                else:
-                    raise
-
-            # If the registered url in table.csv is a file path
-            if not is_url(url) and Path(url).exists():
-                return self.unpack_local_file(url)
+        url = self.get_url(name=name, version=version, **kwargs)
+        if not is_url(url) and Path(url).exists():
+            return self.unpack_local_file(url)
 
         # Unpack to <cachedir>/<hash> in order to give an unique name
         outdir = self.cachedir / str_to_hash(url)

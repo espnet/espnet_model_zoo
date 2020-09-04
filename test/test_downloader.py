@@ -1,3 +1,4 @@
+from pathlib import Path
 import pytest
 
 from espnet_model_zoo.downloader import cmd_download
@@ -65,6 +66,14 @@ def test_download_and_unpack_local_file():
     d = ModelDownloader()
     path = d.download("test")
     d.download_and_unpack(path)
+
+
+def test_download_and_clean_cache():
+    d = ModelDownloader()
+    d.download_and_unpack("test")
+    p = d.download("test")
+    d.clean_cache("test")
+    assert not Path(p).exists()
 
 
 def test_cmd_download():

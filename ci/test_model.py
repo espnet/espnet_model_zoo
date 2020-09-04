@@ -8,7 +8,7 @@ from espnet_model_zoo.downloader import ModelDownloader
 def _asr(model_name):
     d = ModelDownloader()
     speech2text = Speech2Text(**d.download_and_unpack(model_name))
-    speech = np.random.randn(10000)
+    speech = np.zeros((10000,), dtype=np.float32)
     nbests = speech2text(speech)
     text, *_ = nbests[0]
     assert isinstance(text, str)
@@ -17,8 +17,11 @@ def _asr(model_name):
 def _tts(model_name):
     d = ModelDownloader()
     text2speech = Text2Speech(**d.download_and_unpack(model_name))
-    speech, *_ = text2speech("foo")
-    assert isinstance(speech, np.ndarray)
+    speech = np.zeros((10000,), dtype=np.float32)
+    if text2speech.use_speech:
+        text2speech("foo", speech=speech)
+    else:
+        text2speech("foo")
 
 
 def test_model():
@@ -27,8 +30,9 @@ def test_model():
 
     for task in tasks:
         for model_name in d.query(task=task):
-            if d.query("valid", name=model_name) == "false":
+            if d.query("valid", name=model_name)[0] == "false":
                 continue
+            print(f"#### Test {model_name} ####")
 
             if task == "asr":
                 _asr(model_name)
