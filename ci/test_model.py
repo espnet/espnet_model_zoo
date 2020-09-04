@@ -8,7 +8,7 @@ from espnet_model_zoo.downloader import ModelDownloader
 def _asr(model_name):
     d = ModelDownloader()
     speech2text = Speech2Text(**d.download_and_unpack(model_name))
-    speech = np.zeros((10000,))
+    speech = np.zeros((10000,), dtype=np.float32)
     nbests = speech2text(speech)
     text, *_ = nbests[0]
     assert isinstance(text, str)
@@ -17,7 +17,7 @@ def _asr(model_name):
 def _tts(model_name):
     d = ModelDownloader()
     text2speech = Text2Speech(**d.download_and_unpack(model_name))
-    speech = np.zeros((10000,))
+    speech = np.zeros((10000,), dtype=np.float32)
     if text2speech.use_speech:
         text2speech("foo", speech=speech)
     else:
