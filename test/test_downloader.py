@@ -70,7 +70,7 @@ def test_download_and_unpack_local_file():
 
 def test_download_and_clean_cache():
     d = ModelDownloader()
-    info = d.download_and_unpack("test")
+    d.download_and_unpack("test")
     p = d.download("test")
     d.clean_cache("test")
     assert not Path(p).exists()
