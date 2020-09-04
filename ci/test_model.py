@@ -12,7 +12,6 @@ def _asr(model_name):
     nbests = speech2text(speech)
     text, *_ = nbests[0]
     assert isinstance(text, str)
-    d.clean_cache(model_name)
 
 
 def _tts(model_name):
@@ -20,7 +19,6 @@ def _tts(model_name):
     text2speech = Text2Speech(**d.download_and_unpack(model_name))
     speech, *_ = text2speech("foo")
     assert isinstance(speech, np.ndarray)
-    d.clean_cache(model_name)
 
 
 def test_model():
@@ -31,6 +29,7 @@ def test_model():
         for model_name in d.query(task=task):
             if d.query("valid", name=model_name)[0] == "false":
                 continue
+            print(f"#### Test {model_name} ####")
 
             if task == "asr":
                 _asr(model_name)
