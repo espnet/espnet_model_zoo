@@ -17,7 +17,11 @@ def _asr(model_name):
 def _tts(model_name):
     d = ModelDownloader()
     text2speech = Text2Speech(**d.download_and_unpack(model_name))
-    text2speech("foo")
+    speech = np.zeros((10000,))
+    if text2speech.use_speech:
+        text2speech("foo", speech=speech)
+    else:
+        text2speech("foo")
 
 
 def test_model():
