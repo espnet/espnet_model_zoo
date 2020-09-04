@@ -19,7 +19,7 @@ def _tts(model_name):
     d = ModelDownloader()
     text2speech = Text2Speech(**d.download_and_unpack(model_name))
     speech, *_ = text2speech("foo")
-    assert isinstance(speech, torch.tensor)
+    assert isinstance(speech, torch.Tensor)
 
 
 def test_model():
