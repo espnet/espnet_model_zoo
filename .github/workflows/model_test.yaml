@@ -50,7 +50,7 @@ jobs:
           ./install_pyopenjtalk.sh
       - name: Download sample wave file
         run: |
-          wget https://github.com/espnet/espnet_model_zoo/files/5174239/watashiwakamodesu.zip
+          wget https://github.com/espnet/espnet_model_zoo/files/5174295/watashiwakamodesu.zip
           unzip watashiwakamodesu.zip
       - name: test model
         run: |
