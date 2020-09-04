@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 from espnet2.bin.asr_inference import Speech2Text
 from espnet2.bin.tts_inference import Text2Speech
