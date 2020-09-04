@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 
 from espnet2.bin.asr_inference import Speech2Text
 from espnet2.bin.tts_inference import Text2Speech
@@ -18,8 +17,7 @@ def _asr(model_name):
 def _tts(model_name):
     d = ModelDownloader()
     text2speech = Text2Speech(**d.download_and_unpack(model_name))
-    speech, *_ = text2speech("foo")
-    assert isinstance(speech, torch.Tensor)
+    text2speech("foo")
 
 
 def test_model():
