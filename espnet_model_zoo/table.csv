@@ -1,7 +1,7 @@
 corpus,task,name,url,fs,lang,gender,pytorch,espnet,commit,valid
 ,,test,https://zenodo.org/record/3951842/files/test.zip?download=1,,,,,,,true
 mini_an4,asr,kamo-naoyuki/mini_an4_asr_train_raw_bpe_valid.acc.best,https://zenodo.org/record/3957940/files/asr_train_raw_bpe_valid.acc.best.zip?download=1,16000,en,,,,,true
-librispeech,asr,Shinji Watanabe/librispeech_asr_train_asr_transformer_e18_raw_bpe_sp_valid.acc.best,https://zenodo.org/record/3966501/files/asr_train_asr_transformer_e18_raw_bpe_sp_valid.acc.best.zip?download=1,16000,en,,,,,false
+librispeech,asr,Shinji Watanabe/librispeech_asr_train_asr_transformer_e18_raw_bpe_sp_valid.acc.best,https://zenodo.org/record/4030511/files/asr_train_asr_transformer_e18_raw_bpe_sp_valid.acc.best.zip?download=1,16000,en,,,,,true
 jsut,tts,kan-bayashi/jsut_tts_train_tacotron2_raw_phn_jaconv_pyopenjtalk_train.loss.best,https://zenodo.org/record/3963886/files/tts_train_tacotron2_raw_phn_jaconv_pyopenjtalk_train.loss.best.zip?download=1,24000,jp,female,,,,true
 jsut,tts,kan-bayashi/jsut_tts_train_fastspeech_raw_phn_jaconv_pyopenjtalk_train.loss.best,https://zenodo.org/record/3986225/files/tts_train_fastspeech_raw_phn_jaconv_pyopenjtalk_train.loss.best.zip?download=1,24000,jp,female,,,,true
 jsut,tts,kan-bayashi/jsut_tts_train_fastspeech2_raw_phn_jaconv_pyopenjtalk_train.loss.best,https://zenodo.org/record/3988923/files/tts_train_fastspeech2_raw_phn_jaconv_pyopenjtalk_train.loss.best.zip?download=1,24000,jp,female,,,,true
@@ -32,3 +32,11 @@ jsut,tts,kan-bayashi/jsut_fastspeech2,https://zenodo.org/record/4023730/files/tt
 jsut,tts,kan-bayashi/jsut_conformer_fastspeech2,https://zenodo.org/record/4017026/files/tts_train_conformer_fastspeech2_raw_phn_jaconv_pyopenjtalk_train.loss.ave.zip?download=1,24000,jp,female,1.6.0,0.9.2,d8e1bf0,true
 csmsc,tts,kan-bayashi/csmsc_fastspeech2,https://zenodo.org/record/4023736/files/tts_train_fastspeech2_raw_phn_pypinyin_g2p_phone_train.loss.ave.zip?download=1,24000,zh,female,1.6.0,0.9.2,d8e1bf0,true
 csmsc,tts,kan-bayashi/csmsc_conformer_fastspeech2,https://zenodo.org/record/4023734/files/tts_train_conformer_fastspeech2_raw_phn_pypinyin_g2p_phone_train.loss.ave.zip?download=1,24000,zh,female,1.6.0,0.9.2,d8e1bf0,true
+jsut,tts,kan-bayashi/jsut_tts_train_transformer_raw_phn_jaconv_pyopenjtalk_train.loss.ave,https://zenodo.org/record/4027961/files/tts_train_transformer_raw_phn_jaconv_pyopenjtalk_train.loss.ave.zip?download=1,24000,jp,female,1.5.1,0.9.2,d8e1bf0,true
+csmsc,tts,kan-bayashi/csmsc_tts_train_transformer_raw_phn_pypinyin_g2p_phone_train.loss.ave,https://zenodo.org/record/4026804/files/tts_train_transformer_raw_phn_pypinyin_g2p_phone_train.loss.ave.zip?download=1,24000,zh,female,1.5.1,0.9.2,d8e1bf0,true
+ljspeech,tts,kan-bayashi/ljspeech_tts_train_transformer_raw_phn_tacotron_g2p_en_no_space_train.loss.ave,https://zenodo.org/record/4026946/files/tts_train_transformer_raw_phn_tacotron_g2p_en_no_space_train.loss.ave.zip?download=1,22050,en,female,1.5.1,0.9.2,d8e1bf0,true
+vctk,tts,kan-bayashi/vctk_tts_train_gst_transformer_raw_phn_tacotron_g2p_en_no_space_train.loss.ave,https://zenodo.org/record/4027959/files/tts_train_gst_transformer_raw_phn_tacotron_g2p_en_no_space_train.loss.ave.zip?download=1,24000,en,,1.5.1,0.9.2,d8e1bf0,true
+jsut,tts,kan-bayashi/jsut_transformer,https://zenodo.org/record/4027961/files/tts_train_transformer_raw_phn_jaconv_pyopenjtalk_train.loss.ave.zip?download=1,24000,jp,female,1.5.1,0.9.2,d8e1bf0,true
+csmsc,tts,kan-bayashi/csmsc_transformer,https://zenodo.org/record/4026804/files/tts_train_transformer_raw_phn_pypinyin_g2p_phone_train.loss.ave.zip?download=1,24000,zh,female,1.5.1,0.9.2,d8e1bf0,true
+ljspeech,tts,kan-bayashi/ljspeech_transformer,https://zenodo.org/record/4026946/files/tts_train_transformer_raw_phn_tacotron_g2p_en_no_space_train.loss.ave.zip?download=1,22050,en,female,1.5.1,0.9.2,d8e1bf0,true
+vctk,tts,kan-bayashi/vctk_tts_gst_transformer,https://zenodo.org/record/4027959/files/tts_train_gst_transformer_raw_phn_tacotron_g2p_en_no_space_train.loss.ave.zip?download=1,24000,en,,1.5.1,0.9.2,d8e1bf0,true
