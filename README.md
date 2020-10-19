@@ -22,7 +22,7 @@ pip install espnet_model_zoo
 ```
 
 ## Python API for inference
-See the following section about `model_name`
+See the next section about `model_name`
 
 ### ASR
 
