@@ -46,4 +46,4 @@ csj,asr,kan-bayashi/csj_asr_train_asr_transformer_raw_char_sp_valid.acc.ave,http
 ljspeech,tts,kan-bayashi/ljspeech_tts_train_transformer_raw_phn_tacotron_g2p_en_no_space_train.loss.ave,https://zenodo.org/record/4039194/files/tts_train_transformer_raw_phn_tacotron_g2p_en_no_space_train.loss.ave.zip?download=1,22050,en,female,1.5.1,0.9.3,67ca53d,true
 ljspeech,tts,kan-bayashi/ljspeech_transformer,https://zenodo.org/record/4039194/files/tts_train_transformer_raw_phn_tacotron_g2p_en_no_space_train.loss.ave.zip?download=1,22050,en,female,1.5.1,0.9.3,67ca53d,true
 aishell,asr,kamo-naoyuki/aishell_conformer,https://zenodo.org/record/4105763/files/asr_train_asr_conformer3_raw_char_batch_bins4000000_accum_grad4_sp_valid.acc.ave.zip?download=1,16000,zh,,1.6.0,0.9.0,20b0c89,true
-wsj,asr,kamo-naoyuki/wsj_transformer2,https://zenodo.org/record/4176511/files/asr_train_asr_transformer_raw_char_valid.acc.ave.zip?download=1,16000,en,,1.6.0,0.9.0,e7d278a,true
+wsj,asr,kamo-naoyuki/wsj_transformer2,https://zenodo.org/record/4243201/files/asr_train_asr_transformer_raw_char_valid.acc.ave.zip?download=1,16000,en,,1.6.0,0.9.0,e7d278a,true
