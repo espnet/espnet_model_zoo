@@ -31,13 +31,8 @@ import soundfile
 from espnet_model_zoo.downloader import ModelDownloader
 from espnet2.bin.asr_inference import Speech2Text
 d = ModelDownloader()
-speech2text = Speech2Text(**d.download_and_unpack("model_name"))
-
-# Confirm the sampling rate is equal to that of the training corpus.
-# If not, you need to resampe the audio data before inputting to speech2text
-speech, rate = soundfile.read("speech.wav")
-nbests = speech2text(
-    speech,
+speech2text = Speech2Text(
+    **d.download_and_unpack("model_name"),
     # Decoding parameters is not included in the model file
     maxlenratio=0.0,
     minlenratio=0.0,
@@ -47,6 +42,11 @@ nbests = speech2text(
     penalty=0.0,
     nbest=1
 )
+# Confirm the sampling rate is equal to that of the training corpus.
+# If not, you need to resampe the audio data before inputting to speech2text
+speech, rate = soundfile.read("speech.wav")
+nbests = speech2text(speech)
+
 text, *_ = nbests[0]
 print(text)
 ```
