@@ -43,7 +43,7 @@ speech2text = Speech2Text(
     nbest=1
 )
 # Confirm the sampling rate is equal to that of the training corpus.
-# If not, you need to resampe the audio data before inputting to speech2text
+# If not, you need to resample the audio data before inputting to speech2text
 speech, rate = soundfile.read("speech.wav")
 nbests = speech2text(speech)
 
