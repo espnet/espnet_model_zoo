@@ -162,7 +162,6 @@ d.query("name", task="asr")
 ```sh
 # e.g. ASR WSJ task
 git clone https://github.com/espnet/espnet
-cd egs2/wsj/asr1
 pip install -e .
 cd egs2/wsj/asr1
 ./run.sh --skip_data_prep false --skip_train true --download_model kamo-naoyuki/wsj
