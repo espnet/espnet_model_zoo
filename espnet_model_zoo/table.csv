@@ -49,4 +49,4 @@ aishell,asr,kamo-naoyuki/aishell_conformer,https://zenodo.org/record/4105763/fil
 wsj,asr,kamo-naoyuki/wsj_transformer2,https://zenodo.org/record/4243201/files/asr_train_asr_transformer_raw_char_valid.acc.ave.zip?download=1,16000,en,,1.6.0,0.9.0,e7d278a,true
 reverb,asr,kamo-naoyuki/reverb_asr_train_asr_transformer4_raw_char_batch_bins16000000_accum_grad1_sp_valid.acc.ave,https://zenodo.org/record/4278363/files/asr_train_asr_transformer4_raw_char_batch_bins16000000_accum_grad1_sp_valid.acc.ave.zip?download=1,16000,en,,1.5.1,0.9.5,7aad824,true
 timit,asr,kamo-naoyuki/timit_asr_train_asr_raw_word_valid.acc.ave,https://zenodo.org/record/4284058/files/asr_train_asr_raw_word_valid.acc.ave.zip?download=1,16000,en,,1.6.0,0.9.5,f157fcd,true
-jsut,asr,Hoon Chung/jsut_asr_train_asr_conformer8_raw_char_sp_valid.acc.ave,https://zenodo.org/record/4292742/files/asr_train_asr_conformer8_raw_char_sp_valid.acc.ave.zip?download=1,ja,,1.2.0,0.9.0,6448047,true
+jsut,asr,Hoon Chung/jsut_asr_train_asr_conformer8_raw_char_sp_valid.acc.ave,https://zenodo.org/record/4292742/files/asr_train_asr_conformer8_raw_char_sp_valid.acc.ave.zip?download=1,16000,ja,,1.2.0,0.9.0,6448047,true
