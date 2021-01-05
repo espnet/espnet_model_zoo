@@ -33,18 +33,19 @@ def test_model():
     tasks = ["asr", "tts"]
 
     for task in tasks:
-        for model_name in d.query(task=task):
-            if d.query("valid", name=model_name)[0] == "false":
-                continue
-            print(f"#### Test {model_name} ####")
+        for corpus in list(set(d.query("corpus", task=task))):
+            for model_name in d.query(task=task, corpus=corpus):
+                if d.query("valid", name=model_name)[0] == "false":
+                    continue
+                print(f"#### Test {model_name} ####")
 
-            if task == "asr":
-                _asr(model_name)
-            elif task == "tts":
-                _tts(model_name)
-            else:
-                raise NotImplementedError(f"task={task}")
+                if task == "asr":
+                    _asr(model_name)
+                elif task == "tts":
+                    _tts(model_name)
+                else:
+                    raise NotImplementedError(f"task={task}")
 
-            # remove cache directory to reduce the disk usage
+            # NOTE(kan-bayashi): remove and recreate cache dir to reduce the disk usage.
             shutil.rmtree("downloads")
             os.makedirs("downloads")
