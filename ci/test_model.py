@@ -1,3 +1,6 @@
+import os
+import shutil
+
 import numpy as np
 
 from espnet2.bin.asr_inference import Speech2Text
@@ -26,7 +29,7 @@ def _tts(model_name):
 
 
 def test_model():
-    d = ModelDownloader()
+    d = ModelDownloader("downloads")
     tasks = ["asr", "tts"]
 
     for task in tasks:
@@ -41,3 +44,7 @@ def test_model():
                 _tts(model_name)
             else:
                 raise NotImplementedError(f"task={task}")
+
+            # remove cache directory to reduce the disk usage
+            shutil.rmtree("downloads")
+            os.makedirs("downloads")
