@@ -9,7 +9,7 @@ from espnet_model_zoo.downloader import ModelDownloader
 
 
 def _asr(model_name):
-    d = ModelDownloader()
+    d = ModelDownloader("downloads")
     speech2text = Speech2Text(**d.download_and_unpack(model_name, quiet=True))
     speech = np.zeros((10000,), dtype=np.float32)
     nbests = speech2text(speech)
@@ -18,7 +18,7 @@ def _asr(model_name):
 
 
 def _tts(model_name):
-    d = ModelDownloader()
+    d = ModelDownloader("downloads")
     text2speech = Text2Speech(**d.download_and_unpack(model_name, quiet=True))
     inputs = {"text": "foo"}
     if text2speech.use_speech:
@@ -29,7 +29,7 @@ def _tts(model_name):
 
 
 def test_model():
-    d = ModelDownloader("downloads")
+    d = ModelDownloader()
     tasks = ["asr", "tts"]
 
     for task in tasks:
