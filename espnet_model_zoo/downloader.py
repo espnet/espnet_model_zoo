@@ -46,7 +46,7 @@ def str_to_hash(string: Union[str, Path]) -> str:
     return hashlib.md5(str(string).encode("utf-8")).hexdigest()
 
 
-def download(url, output_path, retry: int = 3, chunk_size: int = 8192):
+def download(url, output_path, retry: int = 3, chunk_size: int = 8192, quiet=False):
     # Set retry
     session = requests.Session()
     session.mount("http://", requests.adapters.HTTPAdapter(max_retries=retry))
@@ -62,17 +62,22 @@ def download(url, output_path, retry: int = 3, chunk_size: int = 8192):
     # Write in temporary file
     with tempfile.TemporaryDirectory() as d:
         with (Path(d) / "tmp").open("wb") as f:
-            with tqdm(
-                desc=url,
-                total=file_size,
-                unit="B",
-                unit_scale=True,
-                unit_divisor=1024,
-            ) as pbar:
+            if quiet:
                 for chunk in response.iter_content(chunk_size=chunk_size):
                     if chunk:
                         f.write(chunk)
-                        pbar.update(len(chunk))
+            else:
+                with tqdm(
+                    desc=url,
+                    total=file_size,
+                    unit="B",
+                    unit_scale=True,
+                    unit_divisor=1024,
+                ) as pbar:
+                    for chunk in response.iter_content(chunk_size=chunk_size):
+                        if chunk:
+                            f.write(chunk)
+                            pbar.update(len(chunk))
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         shutil.move(Path(d) / "tmp", output_path)
@@ -224,7 +229,9 @@ class ModelDownloader:
         # Extract files from archived file
         return unpack(filename, outdir)
 
-    def download(self, name: str = None, version: int = -1, **kwargs: str) -> str:
+    def download(
+        self, name: str = None, version: int = -1, quiet: bool = False, **kwargs: str
+    ) -> str:
         url = self.get_url(name=name, version=version, **kwargs)
         if not is_url(url) and Path(url).exists():
             return url
@@ -233,7 +240,7 @@ class ModelDownloader:
         filename = self._get_file_name(url)
         # Download the model file if not existing
         if not (outdir / filename).exists():
-            download(url, outdir / filename)
+            download(url, outdir / filename, quiet=quiet)
 
             # Write the url for debugging
             with (outdir / "url").open("w", encoding="utf-8") as f:
@@ -261,7 +268,7 @@ class ModelDownloader:
         return str(outdir / filename)
 
     def download_and_unpack(
-        self, name: str = None, version: int = -1, **kwargs: str
+        self, name: str = None, version: int = -1, quiet: bool = False, **kwargs: str
     ) -> Dict[str, Union[str, List[str]]]:
         url = self.get_url(name=name, version=version, **kwargs)
         if not is_url(url) and Path(url).exists():
@@ -278,7 +285,7 @@ class ModelDownloader:
                 return info
 
         # Download the file to an unique path
-        filename = self.download(url)
+        filename = self.download(url, quiet=quiet)
 
         # Extract files from archived file
         return unpack(filename, outdir)
