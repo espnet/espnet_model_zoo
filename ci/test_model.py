@@ -17,11 +17,12 @@ def _asr(model_name):
 def _tts(model_name):
     d = ModelDownloader()
     text2speech = Text2Speech(**d.download_and_unpack(model_name))
-    speech = np.zeros((10000,), dtype=np.float32)
+    inputs = {"text": "foo"}
     if text2speech.use_speech:
-        text2speech("foo", speech=speech)
-    else:
-        text2speech("foo")
+        inputs["speech"] = np.zeros((10000,), dtype=np.float32)
+    if text2speech.tts.spk_embed_dim is not None:
+        inputs["spembs"] = np.zeros((text2speech.tts.spk_embed_dim,), dtype=np.float32)
+    text2speech(**inputs)
 
 
 def test_model():
