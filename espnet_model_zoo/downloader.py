@@ -46,7 +46,9 @@ def str_to_hash(string: Union[str, Path]) -> str:
     return hashlib.md5(str(string).encode("utf-8")).hexdigest()
 
 
-def download(url, output_path, retry: int = 3, chunk_size: int = 8192, quiet=False):
+def download(
+    url, output_path, retry: int = 3, chunk_size: int = 8192, quiet: bool = False
+):
     # Set retry
     session = requests.Session()
     session.mount("http://", requests.adapters.HTTPAdapter(max_retries=retry))
