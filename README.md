@@ -64,6 +64,34 @@ speech, *_ = text2speech("foobar")
 soundfile.write("out.wav", speech.numpy(), text2speech.fs, "PCM_16")
 ```
 
+### Separation
+
+
+```
+import soundfile
+from espnet_model_zoo.downloader import ModelDownloader
+from espnet2.bin.enh_inference import SeparateSpeech
+d = ModelDownloader()
+separate_speech = SeparateSpeech(
+    **d.download_and_unpack("model_name"),
+    # for segment-wise process on long speech
+    segment_size=2.4,
+    hop_size=0.8,
+    normalize_segment_scale=False,
+    show_progressbar=True,
+    ref_channel=None,
+    normalize_output_wav=True,
+)
+# Confirm the sampling rate is equal to that of the training corpus.
+# If not, you need to resample the audio data before inputting to speech2text
+speech, rate = soundfile.read("long_speech.wav")
+waves = separate_speech(speech[None, ...], fs=rate)
+```
+
+This API allows processing both short audio samples and long audio samples. For long audio samples, you can set the value of arguments segment_size, hop_size (optionally normalize_segment_scale and show_progressbar) to perform segment-wise speech enhancement/separation on the input speech. Note that the segment-wise processing is disabled by default.
+
+
+
 ## Instruction for ModelDownloader
 
 ```python
