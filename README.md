@@ -67,7 +67,7 @@ soundfile.write("out.wav", speech.numpy(), text2speech.fs, "PCM_16")
 ### Separation
 
 
-```
+```python
 import soundfile
 from espnet_model_zoo.downloader import ModelDownloader
 from espnet2.bin.enh_inference import SeparateSpeech
