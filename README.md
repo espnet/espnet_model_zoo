@@ -64,7 +64,7 @@ speech, *_ = text2speech("foobar")
 soundfile.write("out.wav", speech.numpy(), text2speech.fs, "PCM_16")
 ```
 
-### Separation
+### Speech separation
 
 
 ```python
