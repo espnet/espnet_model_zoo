@@ -132,7 +132,7 @@ def upload(
     license: str = "CC-BY-4.0",
     keywords: Collection[str] = (),
     related_identifiers: Collection[dict] = (),
-    community_identifer: str = "espnet",
+    community_identifer: str = None,
     use_sandbox: bool = True,
     publish: bool = False,
 ):
@@ -154,12 +154,13 @@ def upload(
             "title": title,
             "description": description,
             "creators": [creator],
-            "communities": [{"identifier": community_identifer}],
             "license": license,
             "keywords": list(keywords),
             "related_identifiers": list(related_identifiers),
         }
     }
+    if community_identifer is nor None:
+        data["communities"] = [{"identifier": community_identifer}]
     zenodo.update_metadata(r, data)
 
     # Upload files using new API
