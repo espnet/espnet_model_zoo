@@ -159,7 +159,7 @@ def upload(
             "related_identifiers": list(related_identifiers),
         }
     }
-    if community_identifer is nor None:
+    if community_identifer is no None:
         data["communities"] = [{"identifier": community_identifer}]
     zenodo.update_metadata(r, data)
 
