@@ -1,6 +1,7 @@
 import argparse
 from distutils.util import strtobool
 import hashlib
+import os
 from pathlib import Path
 import re
 import shutil
@@ -90,7 +91,11 @@ class ModelDownloader:
 
     def __init__(self, cachedir: Union[Path, str] = None):
         if cachedir is None:
+            # The default path is the directory of this module
             cachedir = Path(__file__).parent
+            # If not having write permission, fallback to homedir
+            if not os.access(cachedir, os.W_OK):
+                cachedir = Path.home() / ".cache" / "espnet_model_zoo"
         else:
             cachedir = Path(cachedir).expanduser().absolute()
         cachedir.mkdir(parents=True, exist_ok=True)
