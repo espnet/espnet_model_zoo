@@ -11,7 +11,8 @@ from espnet_model_zoo.downloader import ModelDownloader
 def _asr(model_name):
     d = ModelDownloader("downloads")
     speech2text = Speech2Text(**d.download_and_unpack(model_name, quiet=True))
-    speech = np.zeros((10000,), dtype=np.float32)
+    model_input_size = speech2text.asr_train_args["input_size"]
+    speech = np.zeros((10000,), dtype=np.float32) if model_input_size == "null" else np.zeros((1000,model_input_size),dtype=np.float32)
     nbests = speech2text(speech)
     text, *_ = nbests[0]
     assert isinstance(text, str)
