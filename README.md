@@ -11,17 +11,19 @@
 
 Utilities managing the pretrained models created by [ESPnet](https://github.com/espnet/espnet). This function is inspired by the [Asteroid pretrained model function](https://github.com/mpariente/asteroid/blob/master/docs/source/readmes/pretrained_models.md).
 
-- Zenodo community: https://zenodo.org/communities/espnet/
+- Zenodo community: <https://zenodo.org/communities/espnet/>
+- HuggingFace community: <https://huggingface.co/espnet>
 - Registered models: [table.csv](espnet_model_zoo/table.csv)
 
 ## Install
 
-```
+```bash
 pip install torch
 pip install espnet_model_zoo
 ```
 
 ## Python API for inference
+
 See the next section about `model_name`
 
 ### ASR
@@ -66,7 +68,6 @@ soundfile.write("out.wav", speech.numpy(), text2speech.fs, "PCM_16")
 
 ### Speech separation
 
-
 ```python
 import soundfile
 from espnet_model_zoo.downloader import ModelDownloader
@@ -90,8 +91,6 @@ waves = separate_speech(speech[None, ...], fs=rate)
 
 This API allows processing both short audio samples and long audio samples. For long audio samples, you can set the value of arguments segment_size, hop_size (optionally normalize_segment_scale and show_progressbar) to perform segment-wise speech enhancement/separation on the input speech. Note that the segment-wise processing is disabled by default.
 
-
-
 ## Instruction for ModelDownloader
 
 ```python
@@ -100,7 +99,7 @@ d = ModelDownloader("~/.cache/espnet")  # Specify cachedir
 d = ModelDownloader()  # <module_dir> is used as cachedir by default
 ```
 
-To obtain a model, you need to give a model name, which is listed in [table.csv](espnet_model_zoo/table.csv). 
+To obtain a model, you need to give a model name, which is listed in [table.csv](espnet_model_zoo/table.csv).
 
 ```python
 >>> d.download_and_unpack("kamo-naoyuki/mini_an4_asr_train_raw_bpe_valid.acc.best")
@@ -129,22 +128,35 @@ You can also obtain it from the URL directly.
 d.download_and_unpack("https://zenodo.org/record/...")
 ```
 
-If you need to use a local model file using this API, you can also give it. 
+If you need to use a local model file using this API, you can also give it.
 
 ```python
 d.download_and_unpack("./some/where/model.zip")
 ```
 
 In this case, the contents are also expanded in the cache directory,
-but the model is identified by the file path, 
-so if you move the model to somewhere and unpack again, 
-it's treated as another model, 
+but the model is identified by the file path,
+so if you move the model to somewhere and unpack again,
+it's treated as another model,
 thus the contents are expanded again at another place.
+
+## HuggingFace Hub
+
+To use the models store at HuggingFace Hub, you need to use the `huggingface_id`
+variable at the inialization stage:
+
+```python
+from espnet_model_zoo.downloader import ModelDownloader
+d = ModelDownloader(
+    huggingface_id="espnet/anogkongda-librimix_enh_train_raw_valid.si_snr.ave"
+)
+```
 
 ## Query model names
 
-You can view the model names from our Zenodo community, https://zenodo.org/communities/espnet/, 
-or using `query()`.  All information are written in [table.csv](espnet_model_zoo/table.csv). 
+You can view the model names from our Zenodo community, <https://zenodo.org/communities/espnet/>,
+out HuggingFace community, <https://huggingface.co/espnet>, or using `query()`.
+All information are written in [table.csv](espnet_model_zoo/table.csv).
 
 ```python
 d.query("name")
@@ -168,12 +180,14 @@ d.query("name", task="asr")
     # Query the other key
     espnet_model_zoo_query --key url task=asr corpus=wsj 
     ```
+
 - `espnet_model_zoo_download`
 
     ```sh
     espnet_model_zoo_download <model_name>  # Print the path of the downloaded file
     espnet_model_zoo_download --unpack true <model_name>   # Print the path of unpacked files
     ```
+
 - `espnet_model_zoo_upload`
 
     ```sh
@@ -200,7 +214,7 @@ cd egs2/wsj/asr1
 1. Upload your model to Zenodo
 
     You need to [signup to Zenodo](https://zenodo.org/) and [create an access token](https://zenodo.org/account/settings/applications/tokens/new/) to upload models.
-    You can upload your own model by using `espnet_model_zoo_upload` command freely, 
+    You can upload your own model by using `espnet_model_zoo_upload` command freely,
     but we normally upload a model using [recipes](https://github.com/espnet/espnet/blob/master/egs2/TEMPLATE).
 
 1. Create a Pull Request to modify [table.csv](espnet_model_zoo/table.csv)
@@ -208,7 +222,6 @@ cd egs2/wsj/asr1
     You need to append your record at the last line.
 1. (Administrator does) Increment the third version number of [setup.py](setup.py), e.g. 0.0.3 -> 0.0.4
 1. (Administrator does) Release new version
-
 
 ## Update your model
 
