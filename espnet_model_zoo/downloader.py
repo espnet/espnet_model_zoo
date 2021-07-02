@@ -20,6 +20,8 @@ from tqdm import tqdm
 from espnet2.main_funcs.pack_funcs import get_dict_from_cache
 from espnet2.main_funcs.pack_funcs import unpack
 
+from espnet_model_zoo.huggingface import from_huggingface
+
 
 MODELS_URL = (
     "https://raw.githubusercontent.com/espnet/espnet_model_zoo/master/"
@@ -89,7 +91,11 @@ def download(
 class ModelDownloader:
     """Download model from zenodo and unpack."""
 
-    def __init__(self, cachedir: Union[Path, str] = None):
+    def __init__(self, cachedir: Union[Path, str] = None, huggingface_id: str = None):
+        self.huggingface_id = huggingface_id
+        if huggingface_id is not None:
+            return
+
         if cachedir is None:
             # The default path is the directory of this module
             cachedir = Path(__file__).parent
@@ -277,6 +283,9 @@ class ModelDownloader:
     def download_and_unpack(
         self, name: str = None, version: int = -1, quiet: bool = False, **kwargs: str
     ) -> Dict[str, Union[str, List[str]]]:
+        if self.huggingface_id is not None:
+            return from_huggingface(self.huggingface_id)
+
         url = self.get_url(name=name, version=version, **kwargs)
         if not is_url(url) and Path(url).exists():
             return self.unpack_local_file(url)

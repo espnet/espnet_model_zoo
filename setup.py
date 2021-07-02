@@ -5,7 +5,14 @@ from setuptools import setup
 
 
 requirements = {
-    "install": ["pandas", "requests", "tqdm", "numpy", "espnet"],
+    "install": [
+        "pandas",
+        "requests",
+        "tqdm",
+        "numpy",
+        "espnet",
+        "huggingface_hub",
+    ],
     "setup": ["pytest-runner"],
     "test": [
         "pytest>=3.3.0",

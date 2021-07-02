@@ -1,8 +1,6 @@
 """Utilities for huggingface hub."""
 from filelock import FileLock
-import functools
 import os
-from typing import Any
 from typing import Dict
 import yaml
 
@@ -12,18 +10,13 @@ from huggingface_hub import snapshot_download
 META_YAML_FILENAME = "meta.yaml"
 
 
-def nested_dict_get(dictionary: Dict, dotted_key: str):
-    """nested_dict_get."""
-    keys = dotted_key.split(".")
-    return functools.reduce(lambda d, key: d.get(key) if d else None, keys, dictionary)
-
-
-def nested_dict_set(dictionary: Dict, dotted_key: str, v: Any):
-    """nested_dict_set."""
-    keys = dotted_key.split(".")
-    for key in keys[:-1]:
-        dictionary = dictionary.setdefault(key, {})
-    dictionary[keys[-1]] = v
+def setvalue(d: Dict, key: str, new_dir: str):
+    if not isinstance(d[key], str):
+        return
+    v = d[key]
+    if v is not None and any(v.startswith(prefix) for prefix in ["exp", "data"]):
+        new_value = os.path.join(new_dir, v)
+        d[key] = new_value
 
 
 def hf_rewrite_yaml(yaml_file: str, cached_dir: str):
@@ -38,18 +31,12 @@ def hf_rewrite_yaml(yaml_file: str, cached_dir: str):
                 d = yaml.safe_load(f)
 
             for key in d:
-                print(d[key], type(d[key]))
-                if not (isinstance(d[key], str) or isinstance(d[key], dict)):
-                    continue
                 if isinstance(d[key], dict):
-                    
-                v = nested_dict_get(d, key)
-                if v is not None and any(
-                    v.startswith(prefix) for prefix in ["exp", "data"]
-                ):
-                    new_value = os.path.join(cached_dir, v)
-                    nested_dict_set(d, key, new_value)
-                    print(new_value)
+                    for skey in d[key]:
+                        setvalue(d[key], skey, cached_dir)
+                else:
+                    setvalue(d, key, cached_dir)
+
             with open(yaml_file, "w", encoding="utf-8") as fw:
                 yaml.safe_dump(d, fw)
 

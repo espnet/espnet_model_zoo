@@ -82,3 +82,10 @@ def test_cmd_download():
 
 def test_query():
     cmd_query([])
+
+
+def test_download_from_huggingface():
+    d = ModelDownloader(
+        huggingface_id="espnet/kamo-naoyuki-mini_an4_asr_train_raw_bpe_valid.acc.best"
+    )
+    d.download_and_unpack()
