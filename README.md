@@ -155,7 +155,7 @@ d = ModelDownloader(
 ## Query model names
 
 You can view the model names from our Zenodo community, <https://zenodo.org/communities/espnet/>,
-out HuggingFace community, <https://huggingface.co/espnet>, or using `query()`.
+our HuggingFace community, <https://huggingface.co/espnet>, or using `query()`.
 All information are written in [table.csv](espnet_model_zoo/table.csv).
 
 ```python

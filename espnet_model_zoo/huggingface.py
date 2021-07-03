@@ -45,7 +45,7 @@ def hf_rewrite_yaml(yaml_file: str, cached_dir: str):
 
 
 def from_huggingface(huggingface_id: str):
-    """Instantiate a DiarizeSpeech model from a local packed archive or a model id
+    """Dowload a pretrained model stored at HuggingFace Hub.
 
     Args:
         huggingface_id (str): model id from the huggingface.co model hub
@@ -53,7 +53,7 @@ def from_huggingface(huggingface_id: str):
             and  ``julien-c/model@main`` supports specifying a commit/branch/tag.
 
     Returns:
-        instance of DiarizeSpeech
+        Dict with updated initialization files.
 
     """
 
