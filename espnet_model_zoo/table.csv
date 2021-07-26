@@ -110,3 +110,5 @@ open_li52,asr,ftshijt/open_li52_asr_train_asr_raw_bpe7000_valid.acc.ave_10best,h
 gigaspeech,asr,Shinji Watanabe/gigaspeech_asr_train_asr_raw_en_bpe5000_valid.acc.ave,https://zenodo.org/record/4630406/files/asr_train_asr_raw_en_bpe5000_valid.acc.ave.zip?download=1,16000,en,,1.7.1,0.9.8,,true
 switchboard,asr,Yuekai Zhang/swbd_asr_train_asr_cformer5_raw_bpe2000_sp_valid.acc.ave,https://zenodo.org/record/4978923/files/asr_train_asr_cformer5_raw_bpe2000_sp_valid.acc.ave.zip?download=1,8000,en,,1.7.1,0.9.8,,true
 dns_ins20,enh,Yen-Ju Lu/dns_ins20_enh_train_enh_blstm_tf_raw_valid.loss.best,https://zenodo.org/record/4923697/files/enh_train_enh_blstm_tf_raw_valid.loss.best.zip?download=1,16000,en,,1.4.0,0.9.9,,true
+jv_openslr35,asr,jv_openslr35,https://zenodo.org/record/5090139/files/asr_train_asr_raw_bpe1000_valid.acc.best.zip?download=1,16000,jv,,1.8.1,0.9.10,,true
+su_openslr36,asr,su_openslr36,https://zenodo.org/record/5090135/files/asr_train_asr_raw_bpe1000_valid.acc.best.zip?download=1,16000,su,,1.8.1,0.9.10,,true
