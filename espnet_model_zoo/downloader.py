@@ -13,10 +13,14 @@ from typing import Tuple
 from typing import Union
 import warnings
 
+from filelock import FileLock
+from huggingface_hub import snapshot_download
 import pandas as pd
 import requests
 from tqdm import tqdm
+import yaml
 
+from espnet2.main_funcs.pack_funcs import find_path_and_change_it_recursive
 from espnet2.main_funcs.pack_funcs import get_dict_from_cache
 from espnet2.main_funcs.pack_funcs import unpack
 
@@ -173,12 +177,9 @@ class ModelDownloader:
                 # If Specifying local file path
                 if name is not None and Path(name).exists() and len(kwargs) == 1:
                     url = str(Path(name).absolute())
-                # If no models satisfy the conditions, raise an error
+
                 else:
-                    message = "Not found models:"
-                    for key, value in kwargs.items():
-                        message += f" {key}={value}"
-                    raise RuntimeError(message)
+                    return "huggingface.co"
             else:
                 urls = self.data_frame[conditions]["url"]
                 if version < 0:
@@ -236,10 +237,90 @@ class ModelDownloader:
         # Extract files from archived file
         return unpack(filename, outdir)
 
+    def huggingface_download(
+        self, name: str = None, version: int = -1, quiet: bool = False, **kwargs: str
+    ) -> str:
+        # Get huggingface_id from table.csv
+        if name is None:
+            names = self.query(key="name", **kwargs)
+            if len(names) == 0:
+                message = "Not found models:"
+                for key, value in kwargs.items():
+                    message += f" {key}={value}"
+                raise RuntimeError(message)
+            if version < 0:
+                version = len(names) + version
+            name = list(names)[version]
+
+        if "@" in name:
+            huggingface_id, revision = name.split("@", 1)
+        else:
+            huggingface_id = name
+            revision = None
+
+        return snapshot_download(
+            huggingface_id,
+            revision=revision,
+            library_name="espnet",
+            cache_dir=self.cachedir,
+        )
+
+    @staticmethod
+    def _unpack_cache_dir_for_huggingfase(cache_dir: str):
+        meta_yaml = Path(cache_dir) / "meta.yaml"
+        lock_file = Path(cache_dir) / ".lock"
+        flag_file = Path(cache_dir) / ".done"
+
+        with meta_yaml.open("r", encoding="utf-8") as f:
+            d = yaml.safe_load(f)
+            assert isinstance(d, dict), type(d)
+
+            yaml_files = d["yaml_files"]
+            files = d["files"]
+            assert isinstance(yaml_files, dict), type(yaml_files)
+            assert isinstance(files, dict), type(files)
+
+        # Rewrite yaml_files for first case
+        with FileLock(lock_file):
+            if not flag_file.exists():
+                for key, value in yaml_files.items():
+                    yaml_file = Path(cache_dir) / value
+                    with yaml_file.open("r", encoding="utf-8") as f:
+                        d = yaml.safe_load(f)
+                        assert isinstance(d, dict), type(d)
+                        for name in Path(cache_dir).glob("*"):
+                            name = name.relative_to(Path(cache_dir))
+                            d = find_path_and_change_it_recursive(
+                                d, name, str(Path(cache_dir) / name)
+                            )
+
+                    with yaml_file.open("w", encoding="utf-8") as f:
+                        yaml.safe_dump(d, f)
+
+                with flag_file.open("w"):
+                    pass
+
+        retval = {}
+        for key, value in list(yaml_files.items()) + list(files.items()):
+            retval[key] = str(Path(cache_dir) / value)
+        return retval
+
     def download(
         self, name: str = None, version: int = -1, quiet: bool = False, **kwargs: str
     ) -> str:
         url = self.get_url(name=name, version=version, **kwargs)
+
+        # For huggingface compatibility
+        if url in [
+            "https://huggingface.co/",
+            "https://huggingface.co",
+            "huggingface.co",
+        ]:
+            # TODO(kamo): Support quiet
+            cache_dir = self.huggingface_download(name=name, version=version, **kwargs)
+            self._unpack_cache_dir_for_huggingfase(cache_dir)
+            return cache_dir
+
         if not is_url(url) and Path(url).exists():
             return url
 
@@ -280,6 +361,17 @@ class ModelDownloader:
         url = self.get_url(name=name, version=version, **kwargs)
         if not is_url(url) and Path(url).exists():
             return self.unpack_local_file(url)
+
+        # For huggingface compatibility
+        if url in [
+            "https://huggingface.co/",
+            "https://huggingface.co",
+            "huggingface.co",
+        ]:
+            # download_and_unpack and download are same if huggingface case
+            # TODO(kamo): Support quiet
+            cache_dir = self.huggingface_download(name=name, version=version, **kwargs)
+            return self._unpack_cache_dir_for_huggingfase(cache_dir)
 
         # Unpack to <cachedir>/<hash> in order to give an unique name
         outdir = self.cachedir / str_to_hash(url)

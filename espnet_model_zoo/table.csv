@@ -113,3 +113,4 @@ dns_ins20,enh,Yen-Ju Lu/dns_ins20_enh_train_enh_blstm_tf_raw_valid.loss.best,htt
 jv_openslr35,asr,jv_openslr35,https://zenodo.org/record/5090139/files/asr_train_asr_raw_bpe1000_valid.acc.best.zip?download=1,16000,jv,,1.8.1,0.9.10,,true
 su_openslr36,asr,su_openslr36,https://zenodo.org/record/5090135/files/asr_train_asr_raw_bpe1000_valid.acc.best.zip?download=1,16000,su,,1.8.1,0.9.10,,true
 ksponspeech,asr,Yushi Ueda/ksponspeech_asr_train_asr_conformer8_n_fft512_hop_length256_raw_kr_bpe2309_valid.acc.best,https://zenodo.org/record/5154341/files/asr_train_asr_conformer8_n_fft512_hop_length256_raw_kr_bpe2309_valid.acc.best.zip?download=1,16000,kr,,1.8.1,0.10.0,538393c,true
+librispeech,asr,byan/librispeech_asr_train_asr_conformer_raw_bpe_batch_bins30000000_accum_grad3_optim_conflr0.001_sp,https://huggingface.co/,16000,en,,,,,true

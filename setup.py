@@ -5,7 +5,15 @@ from setuptools import setup
 
 
 requirements = {
-    "install": ["pandas", "requests", "tqdm", "numpy", "espnet"],
+    "install": [
+        "pandas",
+        "requests",
+        "tqdm",
+        "numpy",
+        "espnet",
+        "huggingface_hub",
+        "filelock",
+    ],
     "setup": ["pytest-runner"],
     "test": [
         "pytest>=3.3.0",
@@ -29,7 +37,7 @@ extras_require = {
 dirname = os.path.dirname(__file__)
 setup(
     name="espnet_model_zoo",
-    version="0.0.0a30",
+    version="0.1.0",
     url="http://github.com/espnet/espnet_model_zoo",
     description="ESPnet Model Zoo",
     long_description=open(os.path.join(dirname, "README.md"), encoding="utf-8").read(),
