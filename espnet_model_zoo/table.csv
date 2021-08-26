@@ -114,3 +114,4 @@ jv_openslr35,asr,jv_openslr35,https://zenodo.org/record/5090139/files/asr_train_
 su_openslr36,asr,su_openslr36,https://zenodo.org/record/5090135/files/asr_train_asr_raw_bpe1000_valid.acc.best.zip?download=1,16000,su,,1.8.1,0.9.10,,true
 ksponspeech,asr,Yushi Ueda/ksponspeech_asr_train_asr_conformer8_n_fft512_hop_length256_raw_kr_bpe2309_valid.acc.best,https://zenodo.org/record/5154341/files/asr_train_asr_conformer8_n_fft512_hop_length256_raw_kr_bpe2309_valid.acc.best.zip?download=1,16000,kr,,1.8.1,0.10.0,538393c,true
 librispeech,asr,byan/librispeech_asr_train_asr_conformer_raw_bpe_batch_bins30000000_accum_grad3_optim_conflr0.001_sp,https://huggingface.co/,16000,en,,,,,true
+mini_librispeech,diar,Yushi Ueda/mini_librispeech_diar_train_diar_raw_max_epoch20_valid.acc.best,https://zenodo.org/record/5264020/files/diar_train_diar_raw_max_epoch20_valid.acc.best.zip?download=1,8000,,1.9.1,0.10.2,,true
