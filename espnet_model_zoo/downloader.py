@@ -288,7 +288,7 @@ class ModelDownloader:
                     with yaml_file.open("r", encoding="utf-8") as f:
                         d = yaml.safe_load(f)
                         assert isinstance(d, dict), type(d)
-                        for name in Path(cache_dir).glob("*"):
+                        for name in Path(cache_dir).glob("**/*"):
                             name = name.relative_to(Path(cache_dir))
                             d = find_path_and_change_it_recursive(
                                 d, name, str(Path(cache_dir) / name)
