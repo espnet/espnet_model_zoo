@@ -29,11 +29,9 @@ pip install espnet_model_zoo
 
 ```python
 import soundfile
-from espnet_model_zoo.downloader import ModelDownloader
 from espnet2.bin.asr_inference import Speech2Text
-d = ModelDownloader()
-speech2text = Speech2Text(
-    **d.download_and_unpack("model_name"),
+speech2text = Speech2Text.from_pretrained(
+    "model_name",
     # Decoding parameters are not included in the model file
     maxlenratio=0.0,
     minlenratio=0.0,
@@ -56,25 +54,19 @@ print(text)
 
 ```python
 import soundfile
-from espnet_model_zoo.downloader import ModelDownloader
 from espnet2.bin.tts_inference import Text2Speech
-d = ModelDownloader()
-text2speech = Text2Speech(**d.download_and_unpack("model_name"))
-
-speech, *_ = text2speech("foobar")
+text2speech = Text2Speech.from_pretrained("model_name")
+speech = text2speech("foobar")["wav"]
 soundfile.write("out.wav", speech.numpy(), text2speech.fs, "PCM_16")
 ```
 
 ### Speech separation
 
-
 ```python
 import soundfile
-from espnet_model_zoo.downloader import ModelDownloader
 from espnet2.bin.enh_inference import SeparateSpeech
-d = ModelDownloader()
-separate_speech = SeparateSpeech(
-    **d.download_and_unpack("model_name"),
+separate_speech = SeparateSpeech.from_pretrained(
+    "model_name",
     # for segment-wise process on long speech
     segment_size=2.4,
     hop_size=0.8,
@@ -91,6 +83,58 @@ waves = separate_speech(speech[None, ...], fs=rate)
 
 This API allows processing both short audio samples and long audio samples. For long audio samples, you can set the value of arguments segment_size, hop_size (optionally normalize_segment_scale and show_progressbar) to perform segment-wise speech enhancement/separation on the input speech. Note that the segment-wise processing is disabled by default.
 
+
+<details><summary>For old ESPnet (<=10.1) </summary><div>
+
+### ASR
+
+```python
+import soundfile
+from espnet_model_zoo.downloader import ModelDownloader
+from espnet2.bin.asr_inference import Speech2Text
+d = ModelDownloader()
+speech2text = Speech2Text(
+    **d.download_and_unpack("model_name"),
+    # Decoding parameters are not included in the model file
+    maxlenratio=0.0,
+    minlenratio=0.0,
+    beam_size=20,
+    ctc_weight=0.3,
+    lm_weight=0.5,
+    penalty=0.0,
+    nbest=1
+)
+```
+
+### TTS
+
+```python
+import soundfile
+from espnet_model_zoo.downloader import ModelDownloader
+from espnet2.bin.tts_inference import Text2Speech
+d = ModelDownloader()
+text2speech = Text2Speech(**d.download_and_unpack("model_name"))
+```
+
+### Speech separation
+
+```python
+import soundfile
+from espnet_model_zoo.downloader import ModelDownloader
+from espnet2.bin.enh_inference import SeparateSpeech
+d = ModelDownloader()
+separate_speech = SeparateSpeech(
+    **d.download_and_unpack("model_name"),
+    # for segment-wise process on long speech
+    segment_size=2.4,
+    hop_size=0.8,
+    normalize_segment_scale=False,
+    show_progressbar=True,
+    ref_channel=None,
+    normalize_output_wav=True,
+)
+```
+</div></details>
 
 
 ## Instruction for ModelDownloader
