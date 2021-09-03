@@ -9,20 +9,14 @@ on:
       - master
 
 jobs:
-  check_skip:
-    runs-on: ubuntu-18.04
-    if: "! contains(github.event.head_commit.message, '[ci skip]')"
-    steps:
-      - run: echo "${{ github.event.head_commit.message }}"
   linter_and_test:
     runs-on: ${{ matrix.os }}
-    needs: check_skip
     strategy:
       max-parallel: 20
       matrix:
         # os: [ubuntu-16.04, ubuntu-18.04]
-        os: [ubuntu-18.04]
-        python-version: [3.8]
+        os: [ubuntu-20.04]
+        python-version: [3.9]
         espnet-version: ["espnet", "git+https://github.com/espnet/espnet.git"]
     steps:
       - uses: actions/checkout@master
