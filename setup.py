@@ -37,7 +37,7 @@ extras_require = {
 dirname = os.path.dirname(__file__)
 setup(
     name="espnet_model_zoo",
-    version="0.1.0",
+    version="0.1.1a1",
     url="http://github.com/espnet/espnet_model_zoo",
     description="ESPnet Model Zoo",
     long_description=open(os.path.join(dirname, "README.md"), encoding="utf-8").read(),
@@ -63,6 +63,7 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Science/Research",
         "Operating System :: POSIX :: Linux",
