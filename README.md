@@ -24,6 +24,7 @@ pip install espnet_model_zoo
 
 ## Python API for inference
 `model_name` in the following section should be `huggingface_id` or one of the tags in the [table.csv](espnet_model_zoo/table.csv).
+Or you can directly provide zenodo URL (e.g., `https://zenodo.org/record/xxxxxxx/files/hogehoge.zip?download=1`).
 
 ### ASR
 
