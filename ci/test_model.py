@@ -23,11 +23,11 @@ def _tts(model_name):
     inputs = {"text": "foo"}
     if text2speech.use_speech:
         inputs["speech"] = np.zeros((10000,), dtype=np.float32)
-    if text2speech.use_spembs is not None:
+    if text2speech.use_spembs:
         inputs["spembs"] = np.zeros((text2speech.tts.spk_embed_dim,), dtype=np.float32)
-    if text2speech.use_sids is not None:
+    if text2speech.use_sids:
         inputs["sids"] = np.ones((1,), dtype=np.int64)
-    if text2speech.use_lids is not None:
+    if text2speech.use_lids:
         inputs["lids"] = np.ones((1,), dtype=np.int64)
     text2speech(**inputs)
 
