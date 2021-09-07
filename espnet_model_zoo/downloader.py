@@ -116,7 +116,10 @@ class ModelDownloader:
         return self.data_frame
 
     def update_model_table(self):
-        download(MODELS_URL, self.csv)
+        lock_file = str(self.csv) + ".lock"
+        Path(lock_file).parent.mkdir(parents=True, exist_ok=True)
+        with FileLock(lock_file):
+            download(MODELS_URL, self.csv)
 
     def clean_cache(self, name: str = None, version: int = -1, **kwargs: str):
         url = self.get_url(name=name, version=version, **kwargs)
@@ -229,13 +232,16 @@ class ModelDownloader:
 
         # Skip unpacking if the cache exists
         meta_yaml = outdir / "meta.yaml"
-        if meta_yaml.exists():
-            info = get_dict_from_cache(meta_yaml)
-            if info is not None:
-                return info
+        outdir.mkdir(parents=True, exist_ok=True)
+        lock_file = str(meta_yaml) + ".lock"
+        with FileLock(lock_file):
+            if meta_yaml.exists():
+                info = get_dict_from_cache(meta_yaml)
+                if info is not None:
+                    return info
 
-        # Extract files from archived file
-        return unpack(filename, outdir)
+            # Extract files from archived file
+            return unpack(filename, outdir)
 
     def huggingface_download(
         self, name: str = None, version: int = -1, quiet: bool = False, **kwargs: str
@@ -327,32 +333,35 @@ class ModelDownloader:
         outdir = self.cachedir / str_to_hash(url)
         filename = self._get_file_name(url)
         # Download the model file if not existing
-        if not (outdir / filename).exists():
-            download(url, outdir / filename, quiet=quiet)
+        outdir.mkdir(parents=True, exist_ok=True)
+        lock_file = str(outdir / filename) + ".lock"
+        with FileLock(lock_file):
+            if not (outdir / filename).exists():
+                download(url, outdir / filename, quiet=quiet)
 
-            # Write the url for debugging
-            with (outdir / "url").open("w", encoding="utf-8") as f:
-                f.write(url)
+                # Write the url for debugging
+                with (outdir / "url").open("w", encoding="utf-8") as f:
+                    f.write(url)
 
-            r = requests.head(url)
-            if "Content-MD5" in r.headers:
-                checksum = r.headers["Content-MD5"]
+                r = requests.head(url)
+                if "Content-MD5" in r.headers:
+                    checksum = r.headers["Content-MD5"]
 
-                # MD5 checksum
-                sig = hashlib.md5()
-                chunk_size = 8192
-                with open(outdir / filename, "rb") as f:
-                    while True:
-                        chunk = f.read(chunk_size)
-                        if len(chunk) == 0:
-                            break
-                        sig.update(chunk)
+                    # MD5 checksum
+                    sig = hashlib.md5()
+                    chunk_size = 8192
+                    with open(outdir / filename, "rb") as f:
+                        while True:
+                            chunk = f.read(chunk_size)
+                            if len(chunk) == 0:
+                                break
+                            sig.update(chunk)
 
-                if sig.hexdigest() != checksum:
-                    Path(outdir / filename).unlink()
-                    raise RuntimeError(f"Failed to download file: {url}")
-            else:
-                warnings.warn("Not validating checksum")
+                    if sig.hexdigest() != checksum:
+                        Path(outdir / filename).unlink()
+                        raise RuntimeError(f"Failed to download file: {url}")
+                else:
+                    warnings.warn("Not validating checksum")
         return str(outdir / filename)
 
     def download_and_unpack(
@@ -378,16 +387,19 @@ class ModelDownloader:
 
         # Skip downloading and unpacking if the cache exists
         meta_yaml = outdir / "meta.yaml"
-        if meta_yaml.exists():
-            info = get_dict_from_cache(meta_yaml)
-            if info is not None:
-                return info
+        outdir.mkdir(parents=True, exist_ok=True)
+        lock_file = str(meta_yaml) + ".lock"
+        with FileLock(lock_file):
+            if meta_yaml.exists():
+                info = get_dict_from_cache(meta_yaml)
+                if info is not None:
+                    return info
 
-        # Download the file to an unique path
-        filename = self.download(url, quiet=quiet)
+            # Download the file to an unique path
+            filename = self.download(url, quiet=quiet)
 
-        # Extract files from archived file
-        return unpack(filename, outdir)
+            # Extract files from archived file
+            return unpack(filename, outdir)
 
 
 def str2bool(v) -> bool:
