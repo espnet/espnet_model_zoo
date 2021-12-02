@@ -44,7 +44,7 @@ def _tts(model_name):
 
 def test_model():
     d = ModelDownloader()
-    tasks = ["asr", "asr_streaming", "tts"]
+    tasks = ["asr", "asr_stream", "tts"]
 
     for task in tasks:
         for corpus in list(set(d.query("corpus", task=task))):
@@ -55,7 +55,7 @@ def test_model():
 
                 if task == "asr":
                     _asr(model_name)
-                elif task == "asr_streaming":
+                elif task == "asr_stream":
                     _asr_streaming(model_name)
                 elif task == "tts":
                     _tts(model_name)
