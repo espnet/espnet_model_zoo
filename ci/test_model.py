@@ -4,6 +4,7 @@ import shutil
 import numpy as np
 
 from espnet2.bin.asr_inference import Speech2Text
+from espnet2.bin.asr_inference_streaming import Speech2TextStreaming
 from espnet2.bin.tts_inference import Text2Speech
 from espnet_model_zoo.downloader import ModelDownloader
 
@@ -11,6 +12,15 @@ from espnet_model_zoo.downloader import ModelDownloader
 def _asr(model_name):
     d = ModelDownloader("downloads")
     speech2text = Speech2Text(**d.download_and_unpack(model_name, quiet=True))
+    speech = np.zeros((10000,), dtype=np.float32)
+    nbests = speech2text(speech)
+    text, *_ = nbests[0]
+    assert isinstance(text, str)
+
+
+def _asr_streaming(model_name):
+    d = ModelDownloader("downloads")
+    speech2text = Speech2TextStreaming(**d.download_and_unpack(model_name, quiet=True))
     speech = np.zeros((10000,), dtype=np.float32)
     nbests = speech2text(speech)
     text, *_ = nbests[0]
@@ -34,7 +44,7 @@ def _tts(model_name):
 
 def test_model():
     d = ModelDownloader()
-    tasks = ["asr", "tts"]
+    tasks = ["asr", "asr_stream", "tts"]
 
     for task in tasks:
         for corpus in list(set(d.query("corpus", task=task))):
@@ -45,6 +55,8 @@ def test_model():
 
                 if task == "asr":
                     _asr(model_name)
+                elif task == "asr_stream":
+                    _asr_streaming(model_name)
                 elif task == "tts":
                     _tts(model_name)
                 else:
