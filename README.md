@@ -267,8 +267,16 @@ cd egs2/wsj/asr1
 
 1. Create a Pull Request to modify [table.csv](espnet_model_zoo/table.csv)
 
-    The models registered in this `table.csv`, the model are tested in the CI.
-    Indeed, the model can be downloaded without modification `table.csv`.
+    The model can be registered in [table.csv](https://github.com/espnet/espnet_model_zoo/blob/master/espnet_model_zoo/table.csv).
+    Then, the model will be tested in the CI.
+    Note that, unlike the zenodo case, you don't need to add the URL because huggingface_id itself can specify the model file, so please fill the value as `https://huggingface.co/`.
+
+    e.g. `table.csv`
+
+    ```
+    ...
+    aidatatang_200zh,asr,sw005320/aidatatang_200zh_conformer,https://huggingface.co/,16000,zh,,,,,true
+    ```
 1. (Administrator does) Increment the third version number of [setup.py](setup.py), e.g. 0.0.3 -> 0.0.4
 1. (Administrator does) Release new version
 
