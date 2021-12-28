@@ -1,8 +1,9 @@
+import numpy as np
 import os
 import shutil
-import sys
 from subprocess import call
-import numpy as np
+import sys
+
 
 from espnet2.bin.asr_inference import Speech2Text
 from espnet2.bin.asr_inference_streaming import Speech2TextStreaming
