@@ -255,7 +255,7 @@ cd egs2/wsj/asr1
 
     1. (if you do not have an HF hub account) Go to https://huggingface.co and create an HF account by clicking a `sign up` button below.
     ![image](https://user-images.githubusercontent.com/11741550/147585941-af1a7e88-934e-4e24-b30e-4b120dbc023a.png)
-    2. From a `new model` link in the profile, create a new model repository. Please include a recipe name (e.g., aidatatang_200zh) and model info (e.g., conformer) in the repository name
+    2. From a [new model](https://huggingface.co/new) link in the profile, create a new model repository. Please include a recipe name (e.g., aidatatang_200zh) and model info (e.g., conformer) in the repository name
     ![image](https://user-images.githubusercontent.com/11741550/147586093-51c98c53-6d23-45a0-b359-14a4489cc970.png)
     3. In the espnet recipe, execute the following command:
     ```
