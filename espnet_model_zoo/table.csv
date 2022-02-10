@@ -154,3 +154,4 @@ ljspeech,tts,kan-bayashi/ljspeech_joint_finetune_conformer_fastspeech2_hifigan,h
 tedlium2,asr_stream,D-Keqi/espnet_asr_train_asr_streaming_transformer_raw_en_bpe500_sp_valid.acc.ave,huggingface.co,16000,en,,,,,true
 speechcommands,slu,pyf98/speechcommands_12commands_conformer,https://huggingface.co/,16000,en,,,,,true
 speechcommands,slu,pyf98/speechcommands_35commands_conformer,https://huggingface.co/,16000,en,,,,,true
+chime4,enh,Wangyou-Zhang/chime4_enh_train_enh_beamformer_mvdr_raw_valid.si_snr.ave,https://zenodo.org/record/6025881/files/enh_train_enh_beamformer_mvdr_raw_valid.si_snr.ave.zip?download=1,16000,en,,1.6.0,0.9.7,,true
