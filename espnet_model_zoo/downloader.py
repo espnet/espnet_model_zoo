@@ -317,7 +317,7 @@ class ModelDownloader:
         url = self.get_url(name=name, version=version, **kwargs)
 
         # Support direct huggingface url specification
-        if name.startswith("https://huggingface.co/"):
+        if name is not None and name.startswith("https://huggingface.co/"):
             url = "https://huggingface.co/"
             name = name.replace("https://huggingface.co/", "")
 
@@ -377,7 +377,7 @@ class ModelDownloader:
             return self.unpack_local_file(url)
 
         # Support direct huggingface url specification
-        if name.startswith("https://huggingface.co/"):
+        if name is not None and name.startswith("https://huggingface.co/"):
             url = "https://huggingface.co/"
             name = name.replace("https://huggingface.co/", "")
 
