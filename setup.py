@@ -13,6 +13,7 @@ requirements = {
         "espnet",
         "huggingface_hub",
         "filelock",
+        "torchaudio",
     ],
     "setup": ["pytest-runner"],
     "test": [
