@@ -272,7 +272,7 @@ class ModelDownloader:
         )
 
     @staticmethod
-    def _unpack_cache_dir_for_huggingfase(cache_dir: str):
+    def _unpack_cache_dir_for_huggingface(cache_dir: str):
         meta_yaml = Path(cache_dir) / "meta.yaml"
         lock_file = Path(cache_dir) / ".lock"
         flag_file = Path(cache_dir) / ".done"
@@ -316,6 +316,11 @@ class ModelDownloader:
     ) -> str:
         url = self.get_url(name=name, version=version, **kwargs)
 
+        # Support direct huggingface url specification
+        if name is not None and name.startswith("https://huggingface.co/"):
+            url = "https://huggingface.co/"
+            name = name.replace("https://huggingface.co/", "")
+
         # For huggingface compatibility
         if url in [
             "https://huggingface.co/",
@@ -324,7 +329,7 @@ class ModelDownloader:
         ]:
             # TODO(kamo): Support quiet
             cache_dir = self.huggingface_download(name=name, version=version, **kwargs)
-            self._unpack_cache_dir_for_huggingfase(cache_dir)
+            self._unpack_cache_dir_for_huggingface(cache_dir)
             return cache_dir
 
         if not is_url(url) and Path(url).exists():
@@ -371,6 +376,11 @@ class ModelDownloader:
         if not is_url(url) and Path(url).exists():
             return self.unpack_local_file(url)
 
+        # Support direct huggingface url specification
+        if name is not None and name.startswith("https://huggingface.co/"):
+            url = "https://huggingface.co/"
+            name = name.replace("https://huggingface.co/", "")
+
         # For huggingface compatibility
         if url in [
             "https://huggingface.co/",
@@ -380,7 +390,7 @@ class ModelDownloader:
             # download_and_unpack and download are same if huggingface case
             # TODO(kamo): Support quiet
             cache_dir = self.huggingface_download(name=name, version=version, **kwargs)
-            return self._unpack_cache_dir_for_huggingfase(cache_dir)
+            return self._unpack_cache_dir_for_huggingface(cache_dir)
 
         # Unpack to <cachedir>/<hash> in order to give an unique name
         outdir = self.cachedir / str_to_hash(url)
