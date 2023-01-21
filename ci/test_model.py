@@ -1,7 +1,9 @@
+import numpy as np
 import os
 import shutil
+from subprocess import call
+import sys
 
-import numpy as np
 
 from espnet2.bin.asr_inference import Speech2Text
 from espnet2.bin.asr_inference_streaming import Speech2TextStreaming
@@ -43,6 +45,12 @@ def _tts(model_name):
 
 
 def test_model():
+    with open("ci/s3prl.sh", "rb") as file:
+        script = file.read()
+    call(script, shell=True)
+
+    sys.path.append(os.getcwd() + "/s3prl")
+    os.environ["PYTHONPATH"] = os.getcwd() + "/s3prl"
     d = ModelDownloader()
     tasks = ["asr", "asr_stream", "tts"]
 
