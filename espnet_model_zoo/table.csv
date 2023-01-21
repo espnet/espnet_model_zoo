@@ -156,6 +156,8 @@ ljspeech,tts,kan-bayashi/ljspeech_joint_finetune_conformer_fastspeech2_hifigan,h
 fsc,asr,siddhana/fsc_asr_train_asr_hubert_transformer_adam_specaug_raw_en_word_valid.acc.ave_5best,https://zenodo.org/record/5590204/files/asr_train_asr_hubert_transformer_adam_specaug_raw_en_word_valid.acc.ave_5best.zip?download=1,16000,en,,1.8.1,0.10.3a2,4e7d2ba,true
 slurp,asr,siddhana/slurp_new_asr_train_asr_conformer_raw_en_word_valid.acc.ave_10best,https://zenodo.org/record/5590384/files/asr_train_asr_conformer_raw_en_word_valid.acc.ave_10best.zip?download=1,16000,en,,1.8.1,0.10.3a2,4e7d2ba,true
 tedlium2,asr_stream,D-Keqi/espnet_asr_train_asr_streaming_transformer_raw_en_bpe500_sp_valid.acc.ave,huggingface.co,16000,en,,,,,true
+speechcommands,slu,pyf98/speechcommands_12commands_conformer,https://huggingface.co/,16000,en,,,,,true
+speechcommands,slu,pyf98/speechcommands_35commands_conformer,https://huggingface.co/,16000,en,,,,,true
 chime4,enh,Wangyou-Zhang/chime4_enh_train_enh_beamformer_mvdr_raw_valid.si_snr.ave,https://zenodo.org/record/6025881/files/enh_train_enh_beamformer_mvdr_raw_valid.si_snr.ave.zip?download=1,16000,en,,1.6.0,0.9.7,,true
 chime4,enh,lichenda/chime4_fasnet_dprnn_tac,https://huggingface.co/lichenda/chime4_fasnet_dprnn_tac,16000,en,,1.8.1,0.10.7a1,,true
 chime4,enh,espnet/Wangyou_Zhang_chime4_enh_train_enh_conv_tasnet_raw,https://huggingface.co/espnet/Wangyou_Zhang_chime4_enh_train_enh_conv_tasnet_raw,16000,en,,1.7.1,0.9.9,,true
