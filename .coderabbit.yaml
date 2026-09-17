@@ -1,0 +1,78 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# https://docs.coderabbit.ai/reference/yaml-template
+#
+# Same settings as espnet/espnet. CodeRabbit reviews each pull request once,
+# when it is opened; it does not re-review on every push (the open-source plan
+# is rate limited per repository). After pushing fixes, ask for a fresh pass by
+# commenting on the pull request:
+#
+#     @coderabbitai full review
+#
+# `@coderabbitai review` is the incremental command and reports that there is
+# nothing to do when the automatic review already covered the commits.
+language: en-US
+tone_instructions: >-
+  Be concise and technical. No jokes or emoji. Report only correctness,
+  reproducibility, or API-compatibility problems. Contributors are often
+  students: explain the problem, do not pile on style nitpicks.
+reviews:
+  profile: quiet              # only the most important feedback
+  high_level_summary: false
+  review_status: false
+  poem: false
+  changed_files_summary: false
+  sequence_diagrams: false
+  auto_review:
+    enabled: true
+    drafts: false
+    auto_incremental_review: false  # not on every push; see the note above
+    ignore_usernames:
+      - dependabot[bot]
+      - pre-commit-ci[bot]
+      - mergify[bot]
+  path_instructions:
+    - path: 'espnet_model_zoo/downloader.py'
+      instructions: >-
+        Every from_pretrained in espnet2/bin reaches models through
+        ModelDownloader.download_and_unpack(), so its contract is public API:
+        a bare Hugging Face id ("espnet/x"), a full https://huggingface.co/
+        URL, a table.csv name and a zenodo URL must all keep working, and the
+        keys of the returned dict must stay the constructor argument names
+        that espnet2/bin/pack.py writes (asr_train_config, asr_model_file,
+        lm_train_config, lm_file, train_config, model_file, ...). Check that
+        download() and download_and_unpack() treat the same input the same
+        way, and that cache paths do not fall inside site-packages.
+    - path: 'espnet_model_zoo/table.csv'
+      instructions: >-
+        One row per released model. Check that the url column is either a
+        zenodo download URL, the bare "huggingface.co" marker, or a full
+        https://huggingface.co/<owner>/<repo> URL; that the name column is the
+        exact tag users pass to from_pretrained; and that the valid column is
+        true/false. A row that ci/test_model.py cannot load blocks the weekly
+        Model test.
+    - path: 'test/**'
+      instructions: >-
+        Tests must not require a GPU or a large download. Network access to
+        huggingface.co, zenodo.org or example.com is tolerated only where the
+        existing tests already use it; new behaviour should be tested with a
+        faked downloader or monkeypatched huggingface_download.
+    - path: 'ci/**'
+      instructions: >-
+        ci/test_python.sh gates every pull request. Flag anything that
+        silently reduces coverage: tests skipped or made non-blocking, a
+        linter dropped, a dependency unpinned.
+    - path: '.github/workflows/**'
+      instructions: >-
+        Check permissions granted to each job, that third-party actions stay
+        pinned to a commit SHA, that runner labels and Python versions are
+        ones GitHub and espnet still support (espnet needs Python >=3.12),
+        and that the trusted-publishing job keeps id-token: write and nothing
+        more. Model test downloads every model in table.csv and must not
+        become a pull-request gate again.
+    - path: 'setup.py'
+      instructions: >-
+        The package is installed by everyone who installs espnet. A new
+        required dependency or a tightened python_requires affects all of them;
+        question whether it is necessary and check the version constraint.
+chat:
+  art: false
