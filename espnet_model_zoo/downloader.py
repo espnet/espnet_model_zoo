@@ -1,6 +1,5 @@
 import argparse
 import hashlib
-import os
 import re
 import shutil
 import tempfile
@@ -117,12 +116,15 @@ class ModelDownloader:
     """Download model from zenodo and unpack."""
 
     def __init__(self, cachedir: Union[Path, str] = None):
+        # A None cachedir used to mean this package's own directory, so a
+        # pip-installed espnet_model_zoo grew by the size of every model it
+        # fetched (4 GB for one OWSM checkpoint) inside site-packages, and
+        # `pip uninstall` took the models with it. The home cache that was the
+        # fallback for a read-only install is now the default for every
+        # install; pass cachedir to keep the models somewhere else.
+        self._explicit_cachedir = cachedir is not None
         if cachedir is None:
-            # The default path is the directory of this module
-            cachedir = Path(__file__).parent
-            # If not having write permission, fallback to homedir
-            if not os.access(cachedir, os.W_OK):
-                cachedir = Path.home() / ".cache" / "espnet_model_zoo"
+            cachedir = Path.home() / ".cache" / "espnet_model_zoo"
         else:
             cachedir = Path(cachedir).expanduser().absolute()
         cachedir.mkdir(parents=True, exist_ok=True)
@@ -287,11 +289,14 @@ class ModelDownloader:
             huggingface_id = name
             revision = None
 
+        # Without an explicit cachedir, let huggingface_hub use its own cache
+        # (HF_HOME / HF_HUB_CACHE), so a model already fetched by transformers
+        # or `hf download` is not downloaded a second time here.
         return snapshot_download(
             huggingface_id,
             revision=revision,
             library_name="espnet",
-            cache_dir=self.cachedir,
+            cache_dir=self.cachedir if self._explicit_cachedir else None,
         )
 
     @staticmethod
