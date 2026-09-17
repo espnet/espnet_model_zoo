@@ -143,7 +143,7 @@ separate_speech = SeparateSpeech(
 ```python
 from espnet_model_zoo.downloader import ModelDownloader
 d = ModelDownloader("~/.cache/espnet")  # Specify cachedir
-d = ModelDownloader()  # <module_dir> is used as cachedir by default
+d = ModelDownloader()  # ~/.cache/espnet_model_zoo by default; Hugging Face models go to the huggingface_hub cache
 ```
 
 To obtain a model, you need to give a `huggingface_id`model` or a tag , which is listed in [table.csv](espnet_model_zoo/table.csv).
