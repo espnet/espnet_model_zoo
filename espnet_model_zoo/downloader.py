@@ -88,6 +88,30 @@ def download(
         shutil.move(Path(d) / "tmp", output_path)
 
 
+_HF_MARKERS = ("https://huggingface.co/", "https://huggingface.co", "huggingface.co")
+
+
+def _resolve_huggingface(name, url):
+    """Return (name, url) with any Hugging Face reference in canonical form.
+
+    A model reaches the downloader in one of three shapes: a bare Hub id
+    ("espnet/x") whose table.csv row says just "huggingface.co"; a full
+    repository URL given as the name; or a bare id whose table.csv row holds
+    the full URL, which is how ten espnet-organisation rows were entered. The
+    first two were handled and the third was not: the url failed the marker
+    test here, download() then recognised it and returned a snapshot
+    directory, and download_and_unpack() tried to unpack that directory as an
+    archive. All three now come out as (repo_id, "https://huggingface.co/").
+    """
+    for candidate in (name, url):
+        if isinstance(candidate, str) and candidate.startswith(
+            "https://huggingface.co/"
+        ):
+            repo_id = candidate[len("https://huggingface.co/") :]
+            return repo_id, "https://huggingface.co/"
+    return name, url
+
+
 class ModelDownloader:
     """Download model from zenodo and unpack."""
 
@@ -320,17 +344,8 @@ class ModelDownloader:
     ) -> str:
         url = self.get_url(name=name, version=version, **kwargs)
 
-        # Support direct huggingface url specification
-        if name is not None and name.startswith("https://huggingface.co/"):
-            url = "https://huggingface.co/"
-            name = name.replace("https://huggingface.co/", "")
-
-        # For huggingface compatibility
-        if url in [
-            "https://huggingface.co/",
-            "https://huggingface.co",
-            "huggingface.co",
-        ]:
+        name, url = _resolve_huggingface(name, url)
+        if url in _HF_MARKERS:
             # TODO(kamo): Support quiet
             cache_dir = self.huggingface_download(name=name, version=version, **kwargs)
             self._unpack_cache_dir_for_huggingface(cache_dir)
@@ -380,17 +395,8 @@ class ModelDownloader:
         if not is_url(url) and Path(url).exists():
             return self.unpack_local_file(url)
 
-        # Support direct huggingface url specification
-        if name is not None and name.startswith("https://huggingface.co/"):
-            url = "https://huggingface.co/"
-            name = name.replace("https://huggingface.co/", "")
-
-        # For huggingface compatibility
-        if url in [
-            "https://huggingface.co/",
-            "https://huggingface.co",
-            "huggingface.co",
-        ]:
+        name, url = _resolve_huggingface(name, url)
+        if url in _HF_MARKERS:
             # download_and_unpack and download are same if huggingface case
             # TODO(kamo): Support quiet
             cache_dir = self.huggingface_download(name=name, version=version, **kwargs)

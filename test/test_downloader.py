@@ -85,3 +85,33 @@ def test_cmd_download():
 
 def test_query():
     cmd_query([])
+
+
+def test_table_row_with_full_hub_url_is_downloaded_from_hub(tmp_path, monkeypatch):
+    # espnet/Wangyou_Zhang_chime4_enh_train_enh_conv_tasnet_raw is one of the
+    # table.csv rows whose url column holds the full repository URL rather
+    # than the "huggingface.co" marker. Given the bare tag, download_and_unpack
+    # used to miss the Hub check, call download(), get a snapshot directory
+    # back and try to unpack it as an archive.
+    tag = "espnet/Wangyou_Zhang_chime4_enh_train_enh_conv_tasnet_raw"
+    d = ModelDownloader(tmp_path)
+    assert d.get_url(tag) == f"https://huggingface.co/{tag}"
+    seen = []
+
+    def fake_huggingface_download(name=None, **kw):
+        seen.append(name)
+        return name
+
+    monkeypatch.setattr(d, "huggingface_download", fake_huggingface_download)
+    monkeypatch.setattr(
+        d,
+        "_unpack_cache_dir_for_huggingface",
+        lambda cache_dir: {"cache_dir": cache_dir},
+    )
+    assert d.download_and_unpack(tag) == {"cache_dir": tag}
+    assert seen == [tag]
+    assert d.download(tag) == tag
+    # A full URL passed as the name still works, and a marker row is untouched.
+    assert d.download_and_unpack(f"https://huggingface.co/{tag}") == {"cache_dir": tag}
+    marker_tag = "espnet/owsm_ctc_v4_1B"
+    assert d.download_and_unpack(marker_tag) == {"cache_dir": marker_tag}
