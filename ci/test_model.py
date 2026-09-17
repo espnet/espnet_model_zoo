@@ -2,10 +2,10 @@ import os
 import shutil
 
 import numpy as np
-
 from espnet2.bin.asr_inference import Speech2Text
 from espnet2.bin.asr_inference_streaming import Speech2TextStreaming
 from espnet2.bin.tts_inference import Text2Speech
+
 from espnet_model_zoo.downloader import ModelDownloader
 
 

@@ -7,15 +7,14 @@ You need to do as follows in order to access zenodo:
 """
 
 import argparse
-from datetime import datetime
-from getpass import getpass
 import json
 import os
+from datetime import datetime
+from getpass import getpass
 from pathlib import Path
-import requests
-from typing import Collection
-from typing import Union
+from typing import Collection, Union
 
+import requests
 from espnet2.utils import config_argparse
 from espnet2.utils.types import str2bool
 
