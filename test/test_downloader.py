@@ -1,10 +1,13 @@
 from pathlib import Path
+
 import pytest
 
-from espnet_model_zoo.downloader import cmd_download
-from espnet_model_zoo.downloader import cmd_query
-from espnet_model_zoo.downloader import download
-from espnet_model_zoo.downloader import ModelDownloader
+from espnet_model_zoo.downloader import (
+    ModelDownloader,
+    cmd_download,
+    cmd_query,
+    download,
+)
 
 
 def test_download():

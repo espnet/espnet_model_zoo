@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 import os
-from setuptools import find_packages
-from setuptools import setup
 
+from setuptools import find_packages, setup
 
 requirements = {
     "install": [
@@ -57,14 +56,12 @@ setup(
     setup_requires=setup_requires,
     tests_require=tests_require,
     extras_require=extras_require,
-    python_requires=">=3.6.0",
+    python_requires=">=3.12",
     classifiers=[
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Science/Research",
         "Operating System :: POSIX :: Linux",

@@ -10,38 +10,42 @@ on:
 
 jobs:
   linter_and_test:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     strategy:
-      max-parallel: 20
+      fail-fast: false
       matrix:
-        # os: [ubuntu-16.04, ubuntu-18.04]
-        os: [ubuntu-20.04]
-        python-version: [3.9]
+        # espnet requires Python >=3.12,<3.14; test the released package and master.
+        python-version: ["3.12"]
         espnet-version: ["espnet", "git+https://github.com/espnet/espnet.git"]
     steps:
-      - uses: actions/checkout@master
-      - uses: actions/cache@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ matrix.espnet-version }}-${{ hashFiles('**/setup.py') }}
-      - uses: actions/setup-python@v1
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
-          architecture: 'x64'
-      - name: install dependencies
+          cache: pip
+          # The action hashes requirements.txt or pyproject.toml by default;
+          # this package declares its dependencies in setup.py.
+          cache-dependency-path: setup.py
+      - name: install system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -qq -y cmake g++-7 libsndfile1-dev bc
+          sudo apt-get install -qq -y libsndfile1
       - name: install
         env:
           ESPNET_VERSION: ${{ matrix.espnet-version }}
         run: |
           pip install -U pip setuptools wheel
+          # CPU wheels: the default index resolves torch to the CUDA build,
+          # several GB that a test of a downloader has no use for.
+          pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
           pip install "${ESPNET_VERSION}"
           pip install ".[test]"
       - name: test python
         run: |
           ./ci/test_python.sh
-      - name: codecov
-        run: |
-          bash <(curl -s https://codecov.io/bash)
+      - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5  # v7.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false

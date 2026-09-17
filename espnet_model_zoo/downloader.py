@@ -1,29 +1,25 @@
 import argparse
-from distutils.util import strtobool
 import hashlib
 import os
-from pathlib import Path
 import re
 import shutil
 import tempfile
-from typing import Dict
-from typing import List
-from typing import Sequence
-from typing import Tuple
-from typing import Union
 import warnings
+from distutils.util import strtobool
+from pathlib import Path
+from typing import Dict, List, Sequence, Tuple, Union
 
-from filelock import FileLock
-from huggingface_hub import snapshot_download
 import pandas as pd
 import requests
-from tqdm import tqdm
 import yaml
-
-from espnet2.main_funcs.pack_funcs import find_path_and_change_it_recursive
-from espnet2.main_funcs.pack_funcs import get_dict_from_cache
-from espnet2.main_funcs.pack_funcs import unpack
-
+from espnet2.main_funcs.pack_funcs import (
+    find_path_and_change_it_recursive,
+    get_dict_from_cache,
+    unpack,
+)
+from filelock import FileLock
+from huggingface_hub import snapshot_download
+from tqdm import tqdm
 
 MODELS_URL = (
     "https://raw.githubusercontent.com/espnet/espnet_model_zoo/master/"
@@ -61,10 +57,13 @@ def download(
 
     # Timeout
     response = session.get(url=url, stream=True, timeout=(10.0, 30.0))
-    file_size = int(response.headers["content-length"])
 
     # Raise error when connection error
     response.raise_for_status()
+
+    # Only the progress bar wants the size; a chunked response has none.
+    file_size = response.headers.get("content-length")
+    file_size = int(file_size) if file_size is not None else None
 
     # Write in temporary file
     with tempfile.TemporaryDirectory() as d:
