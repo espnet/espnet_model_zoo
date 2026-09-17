@@ -115,3 +115,78 @@ def test_table_row_with_full_hub_url_is_downloaded_from_hub(tmp_path, monkeypatc
     assert d.download_and_unpack(f"https://huggingface.co/{tag}") == {"cache_dir": tag}
     marker_tag = "espnet/owsm_ctc_v4_1B"
     assert d.download_and_unpack(marker_tag) == {"cache_dir": marker_tag}
+
+
+def _fake_snapshot(root: Path):
+    # The shape of a packed espnet model as huggingface_hub lays it out: a
+    # meta.yaml naming the config and weights, a config whose paths are
+    # relative to the repository root, and the files themselves.
+    (root / "exp").mkdir(parents=True)
+    (root / "data").mkdir()
+    (root / "exp" / "model.pth").write_bytes(b"w")
+    (root / "exp" / "stats.npz").write_bytes(b"s")
+    (root / "data" / "bpe.model").write_bytes(b"b")
+    (root / "exp" / "config.yaml").write_text(
+        "bpemodel: data/bpe.model\n"
+        "normalize_conf:\n  stats_file: exp/stats.npz\n"
+        "token_list:\n- <blank>\n- a\n"
+        "frontend: default\n",
+        encoding="utf-8",
+    )
+    (root / "meta.yaml").write_text(
+        "files:\n  asr_model_file: exp/model.pth\n"
+        "yaml_files:\n  asr_train_config: exp/config.yaml\n",
+        encoding="utf-8",
+    )
+
+
+def test_hub_snapshot_stays_pristine_and_survives_a_move(tmp_path):
+    import shutil
+
+    import yaml
+
+    snap = tmp_path / "snapshots" / "abc"
+    _fake_snapshot(snap)
+    pristine = (snap / "exp" / "config.yaml").read_text(encoding="utf-8")
+
+    out = ModelDownloader._unpack_cache_dir_for_huggingface(str(snap))
+    assert out["asr_model_file"] == str(snap / "exp" / "model.pth")
+    assert out["asr_train_config"] == str(snap / "exp" / "config.resolved.yaml")
+    resolved = yaml.safe_load(Path(out["asr_train_config"]).read_text())
+    assert resolved["bpemodel"] == str(snap / "data" / "bpe.model")
+    assert resolved["normalize_conf"]["stats_file"] == str(snap / "exp" / "stats.npz")
+    assert (
+        resolved["token_list"] == ["<blank>", "a"] and resolved["frontend"] == "default"
+    )
+    # the downloaded file is untouched
+    assert (snap / "exp" / "config.yaml").read_text(encoding="utf-8") == pristine
+
+    # Move the whole cache: the resolved config follows the new location.
+    moved = tmp_path / "elsewhere" / "snapshots" / "abc"
+    moved.parent.mkdir(parents=True)
+    shutil.move(str(snap), str(moved))
+    out = ModelDownloader._unpack_cache_dir_for_huggingface(str(moved))
+    resolved = yaml.safe_load(Path(out["asr_train_config"]).read_text())
+    assert resolved["bpemodel"] == str(moved / "data" / "bpe.model")
+    assert resolved["normalize_conf"]["stats_file"] == str(moved / "exp" / "stats.npz")
+
+
+def test_config_rewritten_in_place_by_an_older_version_is_healed(tmp_path):
+    import yaml
+
+    snap = tmp_path / "snapshots" / "abc"
+    _fake_snapshot(snap)
+    # What espnet_model_zoo <= 0.1.8 left behind: absolute paths into a cache
+    # directory that no longer exists, written over the downloaded config.
+    old = "/old/site-packages/espnet_model_zoo/models--x/snapshots/abc"
+    (snap / "exp" / "config.yaml").write_text(
+        f"bpemodel: {old}/data/bpe.model\n"
+        f"normalize_conf:\n  stats_file: {old}/exp/stats.npz\n"
+        "frontend: default\n",
+        encoding="utf-8",
+    )
+    out = ModelDownloader._unpack_cache_dir_for_huggingface(str(snap))
+    resolved = yaml.safe_load(Path(out["asr_train_config"]).read_text())
+    assert resolved["bpemodel"] == str(snap / "data" / "bpe.model")
+    assert resolved["normalize_conf"]["stats_file"] == str(snap / "exp" / "stats.npz")
+    assert resolved["frontend"] == "default"
