@@ -18,6 +18,11 @@ import requests
 from espnet2.utils import config_argparse
 from espnet2.utils.types import str2bool
 
+# Zenodo answers metadata calls in seconds; a file upload can run for a long
+# time, but never indefinitely. Without these a stalled connection hangs the CLI.
+TIMEOUT = (10.0, 60.0)
+UPLOAD_TIMEOUT = (10.0, 3600.0)
+
 
 class Zenodo:
     """Helper class to invoke Zenodo API
@@ -41,6 +46,7 @@ class Zenodo:
             params=self.params,
             json={},
             headers=self.headers,
+            timeout=TIMEOUT,
         )
         if r.status_code != 201:
             raise RuntimeError(r.json()["message"])
@@ -56,6 +62,7 @@ class Zenodo:
             params=self.params,
             json={},
             headers=self.headers,
+            timeout=TIMEOUT,
         )
         if r.status_code != 200:
             raise RuntimeError(r.json()["message"])
@@ -74,6 +81,7 @@ class Zenodo:
             params=self.params,
             data=json.dumps(data),
             headers=self.headers,
+            timeout=TIMEOUT,
         )
         if r.status_code != 200:
             raise RuntimeError(r.json()["message"])
@@ -84,7 +92,9 @@ class Zenodo:
     ) -> requests.models.Response:
         if isinstance(r, int):
             r = requests.get(
-                f"{self.zenodo_url}/api/deposit/depositions/{r}", headers=self.headers
+                f"{self.zenodo_url}/api/deposit/depositions/{r}",
+                headers=self.headers,
+                timeout=TIMEOUT,
             )
 
         bucket_url = r.json()["links"]["bucket"]
@@ -95,6 +105,7 @@ class Zenodo:
                 data=fp,
                 # No headers included since it's a raw byte request
                 params=self.params,
+                timeout=UPLOAD_TIMEOUT,
             )
             if r.status_code != 200:
                 raise RuntimeError(r.json()["message"])
@@ -112,6 +123,7 @@ class Zenodo:
             f"{self.zenodo_url}/api/deposit/depositions/"
             f"{deposition_id}/actions/publish",
             params=self.params,
+            timeout=TIMEOUT,
         )
         if r.status_code != 202:
             raise RuntimeError(r.json()["message"])
@@ -135,6 +147,12 @@ def upload(
     use_sandbox: bool = True,
     publish: bool = False,
 ):
+    # Check the files before anything is created remotely: a failure after
+    # create_deposition() leaves a draft behind on Zenodo.
+    for f in files:
+        if not Path(f).is_file():
+            raise FileNotFoundError(f"{f} is not a file")
+
     zenodo = Zenodo(access_token, use_sandbox=use_sandbox)
     r = zenodo.create_deposition()
 
@@ -159,14 +177,11 @@ def upload(
         }
     }
     if community_identifer is not None:
-        data["communities"] = [{"identifier": community_identifer}]
+        # the deposition API reads communities from inside metadata
+        data["metadata"]["communities"] = [{"identifier": community_identifer}]
     zenodo.update_metadata(r, data)
 
     # Upload files using new API
-    for f in files:
-        # Check file existing
-        if not Path(f).exists():
-            raise FileNotFoundError(f"{f} is not found")
     for f in files:
         print(f"Now uploading {f}...")
         zenodo.upload_file(r, f)

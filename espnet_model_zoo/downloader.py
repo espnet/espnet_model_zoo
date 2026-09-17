@@ -64,9 +64,17 @@ def download(
     file_size = response.headers.get("content-length")
     file_size = int(file_size) if file_size is not None else None
 
-    # Write in temporary file
-    with tempfile.TemporaryDirectory() as d:
-        with (Path(d) / "tmp").open("wb") as f:
+    # A partial download must never sit at output_path, which later calls take
+    # as complete. Write beside it - on the same filesystem, so the final step
+    # is a rename and not a copy that an interruption could cut short - and
+    # remove the part file on any failure.
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fd, part = tempfile.mkstemp(
+        prefix=output_path.name + ".", suffix=".part", dir=output_path.parent
+    )
+    try:
+        with os.fdopen(fd, "wb") as f:
             if quiet:
                 for chunk in response.iter_content(chunk_size=chunk_size):
                     if chunk:
@@ -83,9 +91,10 @@ def download(
                         if chunk:
                             f.write(chunk)
                             pbar.update(len(chunk))
-
-        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(Path(d) / "tmp", output_path)
+        os.replace(part, output_path)
+    except BaseException:
+        Path(part).unlink(missing_ok=True)
+        raise
 
 
 _HF_MARKERS = ("https://huggingface.co/", "https://huggingface.co", "huggingface.co")
@@ -261,23 +270,33 @@ class ModelDownloader:
 
     @staticmethod
     def _get_file_name(url):
+        """Return the file name a download URL should be stored under.
+
+        Only ever a bare name: the Content-Disposition header is chosen by
+        the server, and a value such as ``../../x`` would otherwise be joined
+        onto the cache directory and land outside it.
+        """
         ma = re.match(r"https://.*/([^/]*)\?download=[0-9]*$", url)
         if ma is not None:
             # URL e.g.
             # https://sandbox.zenodo.org/record/646767/files/asr_train_raw_bpe_valid.acc.best.zip?download=1
-            a = ma.groups()[0]
-            return a
+            name = ma.groups()[0]
         else:
+            name = None
             # If not Zenodo
-            r = requests.head(url)
+            r = requests.head(url, timeout=(10.0, 30.0), allow_redirects=True)
             if "Content-Disposition" in r.headers:
                 # e.g. attachment; filename=asr_train_raw_bpe_valid.acc.best.zip
                 for v in r.headers["Content-Disposition"].split(";"):
                     if "filename=" in v:
-                        return v.split("filename=")[1].strip()
-
-            # if not specified or some error happens
-            return Path(url).name
+                        name = v.split("filename=")[1].strip().strip("\"'")
+            if not name:
+                # if not specified or some error happens
+                name = url.split("?")[0].rstrip("/").split("/")[-1]
+        name = Path(name).name
+        if name in ("", ".", ".."):
+            raise ValueError(f"Cannot derive a file name from {url!r}")
+        return name
 
     def unpack_local_file(self, name: str = None) -> Dict[str, Union[str, List[str]]]:
         if not Path(name).exists():
