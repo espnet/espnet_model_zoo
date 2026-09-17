@@ -190,3 +190,23 @@ def test_config_rewritten_in_place_by_an_older_version_is_healed(tmp_path):
     assert resolved["bpemodel"] == str(snap / "data" / "bpe.model")
     assert resolved["normalize_conf"]["stats_file"] == str(snap / "exp" / "stats.npz")
     assert resolved["frontend"] == "default"
+
+
+def test_paths_leading_out_of_the_snapshot_are_left_alone(tmp_path):
+    import yaml
+
+    snap = tmp_path / "snapshots" / "abc"
+    _fake_snapshot(snap)
+    sibling = tmp_path / "snapshots" / "other.npz"
+    sibling.write_bytes(b"x")
+    (snap / "exp" / "config.yaml").write_text(
+        "bpemodel: data/bpe.model\n"
+        "normalize_conf:\n  stats_file: ../other.npz\n"
+        "frontend: default\n",
+        encoding="utf-8",
+    )
+    out = ModelDownloader._unpack_cache_dir_for_huggingface(str(snap))
+    resolved = yaml.safe_load(Path(out["asr_train_config"]).read_text())
+    assert resolved["bpemodel"] == str(snap / "data" / "bpe.model")
+    # exists, but outside the snapshot: not bound into the sidecar
+    assert resolved["normalize_conf"]["stats_file"] == "../other.npz"

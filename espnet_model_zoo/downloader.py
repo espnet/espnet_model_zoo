@@ -1,5 +1,6 @@
 import argparse
 import hashlib
+import os
 import re
 import shutil
 import tempfile
@@ -129,15 +130,30 @@ def _resolve_paths(value, root: Path):
         return value
     candidate = Path(value)
     if not candidate.is_absolute():
-        return str(root / value) if (root / value).exists() else value
+        joined = root / value
+        return str(joined) if _inside(joined, root) and joined.exists() else value
     if candidate.exists():
         return value
     parts = candidate.parts
     for i in range(1, len(parts)):
         healed = root.joinpath(*parts[i:])
-        if healed.exists():
+        if _inside(healed, root) and healed.exists():
             return str(healed)
     return value
+
+
+def _inside(path: Path, root: Path) -> bool:
+    """Lexical containment: does ``path`` stay under ``root``?
+
+    A config value such as ``../other/x`` exists relative to the snapshot and
+    would otherwise be bound into the sidecar, then break the next time the
+    cache moves. Lexical on purpose: huggingface_hub snapshots are symlinks
+    into a blob store outside the snapshot, so a real-path check would reject
+    every packed file.
+    """
+    path = os.path.normpath(str(path))
+    root = os.path.normpath(str(root))
+    return path == root or path.startswith(root + os.sep)
 
 
 class ModelDownloader:
