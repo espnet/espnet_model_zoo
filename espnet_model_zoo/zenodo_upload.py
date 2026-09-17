@@ -91,11 +91,9 @@ class Zenodo:
         self, r: Union[requests.models.Response, int], filename: Union[Path, str]
     ) -> requests.models.Response:
         if isinstance(r, int):
-            r = requests.get(
-                f"{self.zenodo_url}/api/deposit/depositions/{r}",
-                headers=self.headers,
-                timeout=TIMEOUT,
-            )
+            # get_deposition authenticates (the bare GET here did not, and
+            # Zenodo refuses unauthenticated deposition reads) and checks status
+            r = self.get_deposition(r)
 
         bucket_url = r.json()["links"]["bucket"]
         name = Path(filename).name

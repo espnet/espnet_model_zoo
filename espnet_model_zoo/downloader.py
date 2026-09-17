@@ -165,6 +165,10 @@ def _inside(path: Path, root: Path) -> bool:
     return path == root or path.startswith(root + os.sep)
 
 
+# Files ModelDownloader.download() and unpack() create beside the archive.
+_RESERVED_NAMES = frozenset({"url", "meta.yaml"})
+
+
 class ModelDownloader:
     """Download model from zenodo and unpack."""
 
@@ -296,6 +300,11 @@ class ModelDownloader:
         name = Path(name).name
         if name in ("", ".", ".."):
             raise ValueError(f"Cannot derive a file name from {url!r}")
+        if name in _RESERVED_NAMES:
+            # download() records the URL in <outdir>/url and unpack() writes
+            # <outdir>/meta.yaml: an archive stored under either name would be
+            # overwritten by them.
+            name = "download_" + name
         return name
 
     def unpack_local_file(self, name: str = None) -> Dict[str, Union[str, List[str]]]:

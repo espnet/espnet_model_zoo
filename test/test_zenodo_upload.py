@@ -42,9 +42,12 @@ def test_community_goes_inside_metadata(tmp_path, monkeypatch):
 def test_every_zenodo_request_carries_a_timeout(tmp_path, monkeypatch):
     seen = []
 
+    calls = []
+
     def fake(method):
         def call(url, **kw):
             seen.append((method, kw.get("timeout")))
+            calls.append((method, kw))
             body = {"id": 7, "links": {"bucket": "http://b", "latest_html": "x"}}
             return _Resp({"post": 201, "get": 200, "put": 200}[method], body)
 
@@ -60,6 +63,8 @@ def test_every_zenodo_request_carries_a_timeout(tmp_path, monkeypatch):
     f.write_bytes(b"x")
     z.upload_file(r, f)
     z.upload_file(7, f)
+    # the by-id branch must authenticate: every GET carried the access token
+    assert all("params" in kw for m, kw in calls if m == "get"), calls
     # publish answers 202
     monkeypatch.setattr(
         zenodo_upload.requests,

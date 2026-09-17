@@ -276,3 +276,9 @@ def test_file_name_is_a_bare_name_whatever_the_server_says(monkeypatch):
     Head.headers = {"Content-Disposition": "attachment; filename=.."}
     with pytest.raises(ValueError):
         ModelDownloader._get_file_name("http://x/")
+    # download() keeps its own "url" note and unpack() its meta.yaml in the
+    # same directory; an archive under either name would be clobbered
+    Head.headers = {"Content-Disposition": "attachment; filename=url"}
+    assert ModelDownloader._get_file_name("http://x/dl") == "download_url"
+    Head.headers = {"Content-Disposition": "attachment; filename=meta.yaml"}
+    assert ModelDownloader._get_file_name("http://x/dl") == "download_meta.yaml"
