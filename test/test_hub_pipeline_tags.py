@@ -40,6 +40,7 @@ def test_exp_stats_directory_counts_too():
         ("espnet/BSCodec", "audio-to-audio"),
         ("espnet/ms_snsd_tfgridnet", "audio-to-audio"),
         ("espnet/brianyan918_must_c_v2_en-de_st_multidecoder", "translation"),
+        ("espnet/cvss_s2st_discrete_unit", "audio-to-audio"),  # speech in, speech out
         ("espnet/voxcelebs12_rawnet3", "audio-classification"),
         ("espnet/geolid_vl107only_shared_frozen", "audio-classification"),
         ("espnet/meld_cls1_wavlm_base_plus", "audio-classification"),
@@ -75,3 +76,30 @@ def test_files_beat_names():
     # the exp/ directory is the model's own word; the name is the uploader's
     tag, evidence = infer("espnet/x_asr_x", [], ["exp/tts_train_x/config.yaml"], None)
     assert tag == "text-to-speech" and evidence.startswith("file")
+
+
+def test_a_failed_hub_fetch_leaves_the_row_undecided(monkeypatch):
+    from espnet_model_zoo import hub_pipeline_tags as hpt
+
+    def boom(url, timeout=60):
+        raise hpt.FetchError(f"{url}: 503")
+
+    monkeypatch.setattr(hpt, "_get", boom)
+    # the name alone would say ASR; without the files it must not
+    tag, evidence = hpt.plan_one("espnet/x_asr_train_asr", [])
+    assert tag == "" and evidence.startswith("fetch error")
+
+
+def test_a_failed_meta_fetch_also_leaves_the_row_undecided(monkeypatch):
+    from espnet_model_zoo import hub_pipeline_tags as hpt
+
+    monkeypatch.setattr(
+        hpt, "_get", lambda url, timeout=60: {"siblings": [{"rfilename": "meta.yaml"}]}
+    )
+
+    def boom(url, timeout=60):
+        raise hpt.FetchError(f"{url}: 404")
+
+    monkeypatch.setattr(hpt, "_get_text", boom)
+    tag, evidence = hpt.plan_one("espnet/x_tts_x", [])
+    assert tag == "" and "fetch error" in evidence

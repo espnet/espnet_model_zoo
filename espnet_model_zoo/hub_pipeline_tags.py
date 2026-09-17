@@ -78,10 +78,11 @@ NAME_PATTERNS: List[Tuple[str, str]] = [
         r"(^|[\s_/-])(enh|tse)([\s_/-]|$)|codec|soundstream|encodec|(^|[\s_/-])dac([\s_/-]|$)|tfgridnet|snsd|wsj0_2mix|librimix|whamr?([\s_/-]|$)|separation|(^|[\s_/-])dns([\s_/-]|$)",  # noqa: E501
         "audio-to-audio",
     ),  # noqa: E501
+    (r"(^|[\s_/-])s2st([\s_/-]|$)", "audio-to-audio"),  # speech in, speech out
     (
-        r"(^|[\s_/-])(st|mt|s2st)([\s_/-]|$)|must-?c|iwslt|covost|translation",
+        r"(^|[\s_/-])(st|mt)([\s_/-]|$)|must-?c|iwslt|covost|translation",
         "translation",
-    ),  # noqa: E501
+    ),
     (
         r"(^|[\s_/-])(asr|s2t|owsm|owls|whisper|transducer)",
         "automatic-speech-recognition",
@@ -101,21 +102,26 @@ NAME_PATTERNS: List[Tuple[str, str]] = [
 ]
 
 
-def _get(url: str, timeout: float = 60) -> Optional[dict]:
+class FetchError(RuntimeError):
+    """A Hub request failed; the row it was for must stay undecided."""
+
+
+def _get(url: str, timeout: float = 60) -> dict:
     try:
         r = requests.get(url, timeout=timeout)
         r.raise_for_status()
         return r.json()
-    except requests.RequestException:
-        return None
+    except (requests.RequestException, ValueError) as e:
+        raise FetchError(f"{url}: {e}") from e
 
 
-def _get_text(url: str, timeout: float = 60) -> Optional[str]:
+def _get_text(url: str, timeout: float = 60) -> str:
     try:
         r = requests.get(url, timeout=timeout)
-        return r.text if r.ok else None
-    except requests.RequestException:
-        return None
+        r.raise_for_status()
+        return r.text
+    except requests.RequestException as e:
+        raise FetchError(f"{url}: {e}") from e
 
 
 def infer_from_meta(meta_yaml: Optional[str]) -> Optional[Tuple[str, str]]:
@@ -165,8 +171,26 @@ def infer(model_id: str, tags: List[str], files: List[str], meta_yaml: Optional[
     return "", "no evidence"
 
 
+def plan_one(model_id: str, tags: List[str]) -> Tuple[str, str]:
+    """Infer one model's tag, or leave it blank when the Hub could not be read.
+
+    A failed file listing or meta.yaml fetch is not "no evidence": the name
+    rules would then decide a model whose own files might have said
+    otherwise, and `apply` would push that. Such a row stays blank and says why.
+    """
+    try:
+        info = _get(f"{API}/models/{model_id}")
+        files = [s["rfilename"] for s in info.get("siblings", [])]
+        meta = None
+        if "meta.yaml" in files:
+            meta = _get_text(f"https://huggingface.co/{model_id}/raw/main/meta.yaml")
+    except FetchError as e:
+        return "", f"fetch error, not decided: {e}"
+    return infer(model_id, tags, files, meta)
+
+
 def plan(out_path: str) -> None:
-    models = _get(f"{API}/models?author={ORG}&limit=1000") or []
+    models = _get(f"{API}/models?author={ORG}&limit=1000")  # FetchError aborts
     untagged = [m for m in models if not m.get("pipeline_tag")]
     print(
         f"{len(models)} models, {len(untagged)} without pipeline_tag", file=sys.stderr
@@ -174,14 +198,7 @@ def plan(out_path: str) -> None:
     rows: List[Dict[str, str]] = []
     for i, m in enumerate(untagged, 1):
         mid = m["modelId"]
-        info = _get(f"{API}/models/{mid}") or {}
-        files = [s["rfilename"] for s in info.get("siblings", [])]
-        meta = (
-            _get_text(f"https://huggingface.co/{mid}/raw/main/meta.yaml")
-            if "meta.yaml" in files
-            else None
-        )
-        tag, evidence = infer(mid, m.get("tags", []), files, meta)
+        tag, evidence = plan_one(mid, m.get("tags", []))
         rows.append(
             {
                 "model": mid,
