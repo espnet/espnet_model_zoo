@@ -287,7 +287,7 @@ def test_file_name_is_a_bare_name_whatever_the_server_says(monkeypatch):
 def test_unpack_without_meta_yaml_names_the_files(tmp_path):
     (tmp_path / "config.yaml").write_text("encoder: stft\n")
     (tmp_path / "valid.loss.best.pth").write_bytes(b"")
-    with pytest.raises(RuntimeError, match="no meta.yaml") as e:
+    with pytest.raises(RuntimeError, match=r"no meta\.yaml") as e:
         ModelDownloader._unpack_cache_dir_for_huggingface(str(tmp_path))
     assert "config.yaml, valid.loss.best.pth" in str(e.value)
     assert "train_config=" in str(e.value)
