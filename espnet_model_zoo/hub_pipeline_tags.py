@@ -257,6 +257,37 @@ def has_model_files(files: List[str]) -> bool:
     return any(f not in _NOT_MODEL_FILES for f in files)
 
 
+# A .gitattributes rule that sends markdown through Git LFS. The card is then
+# a pointer file, so the Hub's parser reads no metadata at all: the model has
+# no task, no widget and no language, however complete its front matter is.
+_MARKDOWN_LFS_RULE = re.compile(r"^\s*(\*\.md|README\.md)\s+.*filter=lfs.*$", re.M)
+
+
+def strip_markdown_lfs_rules(gitattributes: str) -> Tuple[str, List[str]]:
+    """Return .gitattributes without its markdown-through-LFS rules, and them."""
+    removed = [m.group(0).strip() for m in _MARKDOWN_LFS_RULE.finditer(gitattributes)]
+    if not removed:
+        return gitattributes, []
+    kept = _MARKDOWN_LFS_RULE.sub("", gitattributes)
+    return "\n".join(line for line in kept.split("\n") if line.strip()) + "\n", removed
+
+
+def hub_reads_card(info) -> bool:
+    """Whether the Hub's own parser found metadata in this model's card.
+
+    ``info`` is a ModelInfo. A card stored through LFS, or one the parser
+    chokes on, comes back empty here while ``ModelCard.load`` - which resolves
+    the pointer - returns the real content, so the two disagree exactly when
+    the metadata is invisible on the Hub.
+    """
+    data = getattr(info, "card_data", None) or getattr(info, "cardData", None)
+    if data is None:
+        return False
+    if hasattr(data, "to_dict"):
+        data = data.to_dict()
+    return bool(data)
+
+
 def update_card_data(data: Dict, pipeline_tag: str) -> List[str]:
     """Apply the plan's tag and the language repair to a card's metadata dict.
 
@@ -314,6 +345,15 @@ def apply(plan_path: str, dry_run: bool) -> int:
             data = card.data.to_dict()
             notes = update_card_data(data, r["pipeline_tag"])
             if not notes:
+                if data and not hub_reads_card(api.model_info(mid)):
+                    # the card carries the tag, but nothing on the Hub sees it
+                    msg = (
+                        "card complete but invisible to the Hub (README.md is "
+                        "stored through Git LFS); run `fix-cards` on it"
+                    )
+                    print(f"{mid}: FAILED {msg}", file=sys.stderr)
+                    failed.append((mid, msg))
+                    continue
                 print(f"{mid}: already tagged, skipped")
                 continue
             card.data = type(card.data)(**data)
@@ -343,6 +383,64 @@ def apply(plan_path: str, dry_run: bool) -> int:
     return len(failed)
 
 
+def fix_cards(model_ids: List[str], dry_run: bool) -> int:
+    """Make LFS-stored cards readable again; returns the number that failed.
+
+    Two things have to change, and in two commits. The ``*.md`` rule has to
+    leave .gitattributes, or the card goes straight back into LFS; and the
+    card has to be written again as text. They cannot travel together,
+    because the Hub's preupload endpoint decides a file's storage from the
+    .gitattributes already committed, not from one in the same commit. A run
+    that dies between the two picks up where it left off: the second commit
+    is driven by whether the Hub can read the card, not by what this run did.
+    """
+    from huggingface_hub import CommitOperationAdd, HfApi, ModelCard
+
+    api = HfApi()
+    failed = []
+    for mid in model_ids:
+        try:
+            readable = hub_reads_card(api.model_info(mid))
+            local = api.hf_hub_download(repo_id=mid, filename=".gitattributes")
+            with open(local, encoding="utf-8") as f:
+                fixed, removed = strip_markdown_lfs_rules(f.read())
+            if not removed and readable:
+                print(f"{mid}: nothing to do")
+                continue
+            if removed:
+                print(f"{mid}: dropping {', '.join(removed)} from .gitattributes")
+            if not readable:
+                print(f"{mid}: rewriting README.md as text")
+            if dry_run:
+                continue
+            if removed:
+                api.create_commit(
+                    repo_id=mid,
+                    repo_type="model",
+                    operations=[
+                        CommitOperationAdd(".gitattributes", fixed.encode("utf-8"))
+                    ],
+                    commit_message="Stop sending markdown through Git LFS",
+                )
+            if not readable:
+                card = str(ModelCard.load(mid)).encode("utf-8")
+                api.create_commit(
+                    repo_id=mid,
+                    repo_type="model",
+                    operations=[CommitOperationAdd("README.md", card)],
+                    commit_message=(
+                        "Store the model card as text so the Hub can read it"
+                    ),
+                )
+        except Exception as e:
+            first = (str(e).strip().splitlines() or [type(e).__name__])[0]
+            print(f"{mid}: FAILED {type(e).__name__}: {first}", file=sys.stderr)
+            failed.append(mid)
+    if failed:
+        print(f"\n{len(failed)} failed: " + ", ".join(failed), file=sys.stderr)
+    return len(failed)
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -353,9 +451,17 @@ def main() -> None:
     sa = sub.add_parser("apply", help="push the tags in a plan CSV to the Hub")
     sa.add_argument("--plan", required=True)
     sa.add_argument("--dry-run", action="store_true")
+    sf = sub.add_parser(
+        "fix-cards", help="rewrite cards the Hub cannot read because of Git LFS"
+    )
+    sf.add_argument("--models", required=True, help="comma-separated model ids")
+    sf.add_argument("--dry-run", action="store_true")
     a = p.parse_args()
     if a.cmd == "plan":
         plan(a.out)
+    elif a.cmd == "fix-cards":
+        ids = [m.strip() for m in a.models.split(",") if m.strip()]
+        sys.exit(1 if fix_cards(ids, a.dry_run) else 0)
     else:
         sys.exit(1 if apply(a.plan, a.dry_run) else 0)
 

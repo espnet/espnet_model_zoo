@@ -3,7 +3,9 @@ import pytest
 from espnet_model_zoo.hub_pipeline_tags import (
     fix_language,
     has_model_files,
+    hub_reads_card,
     infer,
+    strip_markdown_lfs_rules,
     update_card_data,
 )
 
@@ -149,3 +151,54 @@ def test_has_model_files_ignores_git_metadata_and_the_card():
     assert not has_model_files([".gitattributes"])
     assert not has_model_files([".gitattributes", "README.md"])
     assert has_model_files([".gitattributes", "exp/model.pth"])
+
+
+GITATTRIBUTES = (
+    "*.bin filter=lfs diff=lfs merge=lfs -text\n"
+    "*.md filter=lfs diff=lfs merge=lfs -text\n"
+    "*.ark filter=lfs diff=lfs merge=lfs -text\n"
+)
+
+
+def test_strip_markdown_lfs_rules_keeps_the_other_rules():
+    fixed, removed = strip_markdown_lfs_rules(GITATTRIBUTES)
+    assert removed == ["*.md filter=lfs diff=lfs merge=lfs -text"]
+    assert fixed == (
+        "*.bin filter=lfs diff=lfs merge=lfs -text\n"
+        "*.ark filter=lfs diff=lfs merge=lfs -text\n"
+    )
+
+
+def test_strip_markdown_lfs_rules_also_matches_the_readme_by_name():
+    fixed, removed = strip_markdown_lfs_rules(
+        "README.md filter=lfs diff=lfs merge=lfs -text\n*.pth filter=lfs -text\n"
+    )
+    assert removed == ["README.md filter=lfs diff=lfs merge=lfs -text"]
+    assert fixed == "*.pth filter=lfs -text\n"
+
+
+def test_strip_markdown_lfs_rules_leaves_a_clean_file_alone():
+    clean = "*.bin filter=lfs diff=lfs merge=lfs -text\n"
+    assert strip_markdown_lfs_rules(clean) == (clean, [])
+    # a plain text rule for markdown is not an LFS rule
+    text_rule = "*.md text\n"
+    assert strip_markdown_lfs_rules(text_rule) == (text_rule, [])
+
+
+class _Info:
+    def __init__(self, card_data):
+        self.card_data = card_data
+
+
+def test_hub_reads_card():
+    assert not hub_reads_card(_Info(None))
+    assert not hub_reads_card(_Info({}))
+    assert hub_reads_card(_Info({"pipeline_tag": "text-to-speech"}))
+
+
+def test_hub_reads_card_accepts_a_card_data_object():
+    class Data:
+        def to_dict(self):
+            return {"language": "en"}
+
+    assert hub_reads_card(_Info(Data()))
