@@ -121,13 +121,70 @@ def _resolve_huggingface(name, url):
     return name, url
 
 
+def _looks_like_a_path(value: str) -> bool:
+    """Whether a config string is shaped like a path rather than a plain word.
+
+    A packed config is walked whole, so this decides which of its 50 000-odd
+    strings may be turned into a filename - and a vocabulary is part of that
+    config. Without this test, any token that happened to name something in
+    the snapshot became an absolute path: OWSM's ``token_list`` holds ``.``
+    and ``exp``, so its transcripts came out ending in the local cache
+    directory, and ``brctc_risk_strategy: exp`` became a path too.
+
+    Every real reference that pack_model writes has a directory in it
+    (``exp/...``, ``data/token_list/.../bpe.model``), so requiring a
+    separator keeps all of them and rejects bare words.
+    """
+    return "/" in value or os.sep in value
+
+
+def _unresolve_paths(value, root: Path):
+    """Undo an older version's rewriting of a packed config.
+
+    Until 0.1.8 the downloader rewrote each config in place, and because a
+    huggingface_hub snapshot is symlinks into a blob store, it overwrote the
+    blob: the damage is in the cache, not on the Hub. It rewrote every string
+    that happened to name something in the snapshot, so a vocabulary entry
+    ``exp`` and an option ``brctc_risk_strategy: exp`` became the snapshot's
+    ``exp`` directory. Stripping the snapshot prefix restores exactly what
+    was there, since that is all the old code prepended; the resolve step
+    then puts back the ones that really are paths.
+    """
+    if isinstance(value, dict):
+        return {k: _unresolve_paths(v, root) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_unresolve_paths(v, root) for v in value]
+    if not isinstance(value, str) or not value:
+        return value
+    if value == str(root):
+        return "."
+    prefix = str(root) + os.sep
+    if value.startswith(prefix):
+        return value[len(prefix) :]
+    candidate = Path(value)
+    if not candidate.is_absolute():
+        return value
+    # The cache may have moved since the damage was done, so the prefix to
+    # strip is not always this root. Take the longest tail that exists here;
+    # "exp" comes back as the word it was, and "exp/stats.npz" as a relative
+    # reference that the resolve step turns absolute again.
+    parts = candidate.parts
+    for i in range(1, len(parts)):
+        tail = Path(*parts[i:])
+        healed = root / tail
+        if _inside(healed, root) and healed.exists():
+            return str(tail)
+    return value
+
+
 def _resolve_paths(value, root: Path):
     """Make the paths in a packed config absolute under ``root``.
 
-    A string that names a file or directory relative to ``root`` becomes that
-    absolute path. An absolute string that no longer exists - a config that an
-    older version rewrote for a directory since moved - is looked up by its
-    tail: the longest trailing part of it that exists under ``root`` wins, so
+    A string shaped like a path (see :func:`_looks_like_a_path`) that names a
+    file or directory relative to ``root`` becomes that absolute path. An
+    absolute string that no longer exists - a config that an older version
+    rewrote for a directory since moved - is looked up by its tail: the
+    longest trailing part of it that exists under ``root`` wins, so
     ``/old/snapshots/abc/exp/stats.npz`` becomes ``root/exp/stats.npz``.
     Anything else is returned unchanged.
     """
@@ -135,7 +192,7 @@ def _resolve_paths(value, root: Path):
         return {k: _resolve_paths(v, root) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
         return [_resolve_paths(v, root) for v in value]
-    if not isinstance(value, str) or not value:
+    if not isinstance(value, str) or not value or not _looks_like_a_path(value):
         return value
     candidate = Path(value)
     if not candidate.is_absolute():
@@ -144,7 +201,9 @@ def _resolve_paths(value, root: Path):
     if candidate.exists():
         return value
     parts = candidate.parts
-    for i in range(1, len(parts)):
+    # stop before the last part: a tail of one leaves a bare directory name,
+    # which is how a token like "exp" became <root>/exp
+    for i in range(1, len(parts) - 1):
         healed = root.joinpath(*parts[i:])
         if _inside(healed, root) and healed.exists():
             return str(healed)
@@ -164,6 +223,10 @@ def _inside(path: Path, root: Path) -> bool:
     root = os.path.normpath(str(root))
     return path == root or path.startswith(root + os.sep)
 
+
+# Bumped whenever _resolve_paths changes what it writes, so the sidecars a
+# previous version left in everyone's cache are regenerated instead of reused.
+_RESOLVER_VERSION = 2
 
 # Files ModelDownloader.download() and unpack() create beside the archive.
 _RESERVED_NAMES = frozenset({"url", "meta.yaml"})
@@ -421,9 +484,15 @@ class ModelDownloader:
 
         retval = {}
         with FileLock(lock_file):
-            stale = not root_file.exists() or root_file.read_text(
-                encoding="utf-8"
-            ).strip() != str(cache_dir)
+            # The marker holds the resolver's version as well as the
+            # directory, so a sidecar written by an older one - the versions
+            # that turned "." and "exp" in a token list into paths - is
+            # rewritten rather than trusted.
+            stamp = f"{_RESOLVER_VERSION}\n{cache_dir}"
+            stale = (
+                not root_file.exists()
+                or root_file.read_text(encoding="utf-8").strip() != stamp
+            )
             for key, value in yaml_files.items():
                 src = cache_dir / value
                 dst = src.with_name(src.stem + ".resolved" + src.suffix)
@@ -431,10 +500,13 @@ class ModelDownloader:
                     with src.open("r", encoding="utf-8") as f:
                         config = yaml.safe_load(f)
                         assert isinstance(config, dict), type(config)
+                    # undo first: the config on disk may itself have been
+                    # rewritten by a version that did so in place
+                    config = _unresolve_paths(config, cache_dir)
                     with dst.open("w", encoding="utf-8") as f:
                         yaml.safe_dump(_resolve_paths(config, cache_dir), f)
                 retval[key] = str(dst)
-            root_file.write_text(str(cache_dir), encoding="utf-8")
+            root_file.write_text(stamp, encoding="utf-8")
 
         for key, value in files.items():
             retval[key] = str(cache_dir / value)
