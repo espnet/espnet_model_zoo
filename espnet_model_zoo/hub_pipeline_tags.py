@@ -386,9 +386,13 @@ def apply(plan_path: str, dry_run: bool) -> int:
 def fix_cards(model_ids: List[str], dry_run: bool) -> int:
     """Make LFS-stored cards readable again; returns the number that failed.
 
-    Two things have to change together: the ``*.md`` rule in .gitattributes,
-    or the file goes straight back into LFS, and README.md itself, which is
-    re-uploaded with the content the pointer stands for.
+    Two things have to change, and in two commits. The ``*.md`` rule has to
+    leave .gitattributes, or the card goes straight back into LFS; and the
+    card has to be written again as text. They cannot travel together,
+    because the Hub's preupload endpoint decides a file's storage from the
+    .gitattributes already committed, not from one in the same commit. A run
+    that dies between the two picks up where it left off: the second commit
+    is driven by whether the Hub can read the card, not by what this run did.
     """
     from huggingface_hub import CommitOperationAdd, HfApi, ModelCard
 
@@ -396,26 +400,38 @@ def fix_cards(model_ids: List[str], dry_run: bool) -> int:
     failed = []
     for mid in model_ids:
         try:
-            raw = api.hf_hub_download(repo_id=mid, filename=".gitattributes")
-            with open(raw, encoding="utf-8") as f:
-                gitattributes = f.read()
-            fixed, removed = strip_markdown_lfs_rules(gitattributes)
-            if not removed:
-                print(f"{mid}: no markdown LFS rule, nothing to do")
+            readable = hub_reads_card(api.model_info(mid))
+            local = api.hf_hub_download(repo_id=mid, filename=".gitattributes")
+            with open(local, encoding="utf-8") as f:
+                fixed, removed = strip_markdown_lfs_rules(f.read())
+            if not removed and readable:
+                print(f"{mid}: nothing to do")
                 continue
-            card = str(ModelCard.load(mid))
-            print(f"{mid}: dropping {', '.join(removed)} and rewriting README.md")
+            if removed:
+                print(f"{mid}: dropping {', '.join(removed)} from .gitattributes")
+            if not readable:
+                print(f"{mid}: rewriting README.md as text")
             if dry_run:
                 continue
-            api.create_commit(
-                repo_id=mid,
-                repo_type="model",
-                operations=[
-                    CommitOperationAdd(".gitattributes", fixed.encode("utf-8")),
-                    CommitOperationAdd("README.md", card.encode("utf-8")),
-                ],
-                commit_message="Store the model card as text so the Hub can read it",
-            )
+            if removed:
+                api.create_commit(
+                    repo_id=mid,
+                    repo_type="model",
+                    operations=[
+                        CommitOperationAdd(".gitattributes", fixed.encode("utf-8"))
+                    ],
+                    commit_message="Stop sending markdown through Git LFS",
+                )
+            if not readable:
+                card = str(ModelCard.load(mid)).encode("utf-8")
+                api.create_commit(
+                    repo_id=mid,
+                    repo_type="model",
+                    operations=[CommitOperationAdd("README.md", card)],
+                    commit_message=(
+                        "Store the model card as text so the Hub can read it"
+                    ),
+                )
         except Exception as e:
             first = (str(e).strip().splitlines() or [type(e).__name__])[0]
             print(f"{mid}: FAILED {type(e).__name__}: {first}", file=sys.stderr)
