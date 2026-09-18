@@ -395,6 +395,22 @@ class ModelDownloader:
         lock_file = cache_dir / ".lock"
         root_file = cache_dir / ".resolved_root"
 
+        if not meta_yaml.exists():
+            # Uploaded by hand rather than packed: nothing says which file is
+            # the training config or the checkpoint, so name them explicitly.
+            found = sorted(
+                str(q.relative_to(cache_dir))
+                for q in cache_dir.rglob("*")
+                if q.is_file() and not q.name.startswith(".")
+            )
+            raise RuntimeError(
+                f"{cache_dir} has no meta.yaml, so it was not published with "
+                "espnet's pack_model and the downloader cannot tell which file "
+                "is the training config and which the checkpoint. Pass them "
+                "yourself, e.g. SeparateSpeech(train_config=..., model_file=...) "
+                "after huggingface_hub.snapshot_download. Files in the "
+                f"repository: {', '.join(found) or '(none)'}"
+            )
         with meta_yaml.open("r", encoding="utf-8") as f:
             d = yaml.safe_load(f)
             assert isinstance(d, dict), type(d)
