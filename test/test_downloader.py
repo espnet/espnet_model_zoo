@@ -1,9 +1,12 @@
 from pathlib import Path
 
 import pytest
+import yaml
 
 from espnet_model_zoo.downloader import (
     ModelDownloader,
+    _resolve_paths,
+    _unresolve_paths,
     cmd_download,
     cmd_query,
     download,
@@ -291,3 +294,113 @@ def test_unpack_without_meta_yaml_names_the_files(tmp_path):
         ModelDownloader._unpack_cache_dir_for_huggingface(str(tmp_path))
     assert "config.yaml, valid.loss.best.pth" in str(e.value)
     assert "train_config=" in str(e.value)
+
+
+def _snapshot(tmp_path):
+    """A snapshot laid out the way pack_model writes one."""
+    (tmp_path / "exp" / "asr_stats" / "train").mkdir(parents=True)
+    (tmp_path / "exp" / "asr_stats" / "train" / "feats_stats.npz").write_bytes(b"")
+    (tmp_path / "data" / "token_list").mkdir(parents=True)
+    (tmp_path / "data" / "token_list" / "bpe.model").write_bytes(b"")
+    return tmp_path
+
+
+def test_resolve_paths_keeps_the_real_references(tmp_path):
+    root = _snapshot(tmp_path)
+    config = {
+        "normalize_conf": {"stats_file": "exp/asr_stats/train/feats_stats.npz"},
+        "bpemodel": "data/token_list/bpe.model",
+    }
+    out = _resolve_paths(config, root)
+    assert out["normalize_conf"]["stats_file"] == str(
+        root / "exp/asr_stats/train/feats_stats.npz"
+    )
+    assert out["bpemodel"] == str(root / "data/token_list/bpe.model")
+
+
+def test_resolve_paths_leaves_vocabulary_entries_alone(tmp_path):
+    root = _snapshot(tmp_path)
+    # "." and "exp" name real things inside the snapshot, and both are pieces
+    # in OWSM's vocabulary; rewriting them put the cache directory into every
+    # transcript
+    config = {
+        "token_list": [".", "exp", "data", "▁the", "s"],
+        "brctc_risk_strategy": "exp",
+        "recipe_dir": ".",
+    }
+    assert _resolve_paths(config, root) == config
+
+
+def test_resolve_paths_heals_a_stale_absolute_path(tmp_path):
+    root = _snapshot(tmp_path)
+    old = "/somewhere/else/snapshots/abc/exp/asr_stats/train/feats_stats.npz"
+    assert _resolve_paths({"stats_file": old}, root) == {
+        "stats_file": str(root / "exp/asr_stats/train/feats_stats.npz")
+    }
+
+
+def test_resolve_paths_does_not_heal_down_to_a_bare_directory(tmp_path):
+    root = _snapshot(tmp_path)
+    # the tail "exp" alone would resolve to <root>/exp, which is how a token
+    # became a directory name
+    stale = "/gone/exp"
+    assert _resolve_paths({"x": stale}, root) == {"x": stale}
+
+
+def test_unpack_rewrites_a_sidecar_left_by_an_older_resolver(tmp_path):
+    root = _snapshot(tmp_path)
+    (root / "meta.yaml").write_text(
+        "files: {}\nyaml_files:\n  train_config: exp/config.yaml\n", encoding="utf-8"
+    )
+    (root / "exp" / "config.yaml").write_text(
+        "token_list:\n- '.'\n- exp\n", encoding="utf-8"
+    )
+    corrupted = root / "exp" / "config.resolved.yaml"
+    corrupted.write_text(f"token_list:\n- {root}\n- {root}/exp\n", encoding="utf-8")
+    (root / ".resolved_root").write_text(str(root), encoding="utf-8")
+
+    out = ModelDownloader._unpack_cache_dir_for_huggingface(str(root))
+
+    with open(out["train_config"], encoding="utf-8") as f:
+        assert yaml.safe_load(f) == {"token_list": [".", "exp"]}
+
+
+def test_unresolve_paths_restores_what_an_older_version_prefixed(tmp_path):
+    root = _snapshot(tmp_path)
+    config = {
+        "token_list": [".", f"{root}/exp", "▁the"],
+        "brctc_risk_strategy": f"{root}/exp",
+        "stats_file": f"{root}/exp/asr_stats/train/feats_stats.npz",
+        "output_dir": str(root),
+        "untouched": "/somewhere/else/x",
+    }
+    assert _unresolve_paths(config, root) == {
+        "token_list": [".", "exp", "▁the"],
+        "brctc_risk_strategy": "exp",
+        "stats_file": "exp/asr_stats/train/feats_stats.npz",
+        "output_dir": ".",
+        "untouched": "/somewhere/else/x",
+    }
+
+
+def test_unpack_repairs_a_config_an_older_version_rewrote(tmp_path):
+    root = _snapshot(tmp_path)
+    (root / "meta.yaml").write_text(
+        "files: {}\nyaml_files:\n  train_config: exp/config.yaml\n", encoding="utf-8"
+    )
+    # the shape the in-place rewriting left behind: a vocabulary entry and an
+    # option turned into the snapshot's exp directory, beside a real reference
+    (root / "exp" / "config.yaml").write_text(
+        f"token_list:\n- '.'\n- {root}/exp\n"
+        f"brctc_risk_strategy: {root}/exp\n"
+        f"bpemodel: {root}/data/token_list/bpe.model\n",
+        encoding="utf-8",
+    )
+
+    out = ModelDownloader._unpack_cache_dir_for_huggingface(str(root))
+
+    with open(out["train_config"], encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+    assert config["token_list"] == [".", "exp"]
+    assert config["brctc_risk_strategy"] == "exp"
+    assert config["bpemodel"] == str(root / "data/token_list/bpe.model")
