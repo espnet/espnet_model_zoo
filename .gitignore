@@ -35,3 +35,9 @@ espnet_model_zoo/*.zip
 espnet_model_zoo/*.tgz
 espnet_model_zoo/*.tar
 espnet_model_zoo/*/
+
+# build artefacts (python -m build); a copy of the package under build/lib once
+# slipped into a commit and got reviewed in place of the real files
+build/
+dist/
+*.egg-info/

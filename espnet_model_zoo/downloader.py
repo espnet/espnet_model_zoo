@@ -1,5 +1,6 @@
 import argparse
 import hashlib
+import os
 import re
 import shutil
 import tempfile
@@ -12,7 +13,6 @@ import pandas as pd
 import requests
 import yaml
 from espnet2.main_funcs.pack_funcs import (
-    find_path_and_change_it_recursive,
     get_dict_from_cache,
     unpack,
 )
@@ -110,6 +110,50 @@ def _resolve_huggingface(name, url):
             repo_id = candidate[len("https://huggingface.co/") :]
             return repo_id, "https://huggingface.co/"
     return name, url
+
+
+def _resolve_paths(value, root: Path):
+    """Make the paths in a packed config absolute under ``root``.
+
+    A string that names a file or directory relative to ``root`` becomes that
+    absolute path. An absolute string that no longer exists - a config that an
+    older version rewrote for a directory since moved - is looked up by its
+    tail: the longest trailing part of it that exists under ``root`` wins, so
+    ``/old/snapshots/abc/exp/stats.npz`` becomes ``root/exp/stats.npz``.
+    Anything else is returned unchanged.
+    """
+    if isinstance(value, dict):
+        return {k: _resolve_paths(v, root) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_resolve_paths(v, root) for v in value]
+    if not isinstance(value, str) or not value:
+        return value
+    candidate = Path(value)
+    if not candidate.is_absolute():
+        joined = root / value
+        return str(joined) if _inside(joined, root) and joined.exists() else value
+    if candidate.exists():
+        return value
+    parts = candidate.parts
+    for i in range(1, len(parts)):
+        healed = root.joinpath(*parts[i:])
+        if _inside(healed, root) and healed.exists():
+            return str(healed)
+    return value
+
+
+def _inside(path: Path, root: Path) -> bool:
+    """Lexical containment: does ``path`` stay under ``root``?
+
+    A config value such as ``../other/x`` exists relative to the snapshot and
+    would otherwise be bound into the sidecar, then break the next time the
+    cache moves. Lexical on purpose: huggingface_hub snapshots are symlinks
+    into a blob store outside the snapshot, so a real-path check would reject
+    every packed file.
+    """
+    path = os.path.normpath(str(path))
+    root = os.path.normpath(str(root))
+    return path == root or path.startswith(root + os.sep)
 
 
 class ModelDownloader:
@@ -301,42 +345,55 @@ class ModelDownloader:
 
     @staticmethod
     def _unpack_cache_dir_for_huggingface(cache_dir: str):
-        meta_yaml = Path(cache_dir) / "meta.yaml"
-        lock_file = Path(cache_dir) / ".lock"
-        flag_file = Path(cache_dir) / ".done"
+        """Return constructor kwargs for a Hub snapshot, with paths resolved.
+
+        A packed model's config refers to its files by paths relative to the
+        repository root (``bpemodel: data/bpe.model``). Until now this method
+        rewrote those in place into absolute paths under ``cache_dir`` - once,
+        guarded by a ``.done`` marker - which mutated the snapshot (a symlink
+        into huggingface_hub's blob store, so the blob itself changed) and
+        froze the location: moving or copying the cache broke every model in
+        it, since the config then pointed at the old directory.
+
+        The snapshot is now left as downloaded. Each config is written once
+        more as ``<name>.resolved.yaml`` next to it with the paths made
+        absolute, regenerated whenever ``cache_dir`` is not the directory the
+        resolved files were written for, and a config that an older version
+        rewrote in place is healed by locating each missing absolute path by
+        its tail under the current ``cache_dir``.
+        """
+        cache_dir = Path(cache_dir)
+        meta_yaml = cache_dir / "meta.yaml"
+        lock_file = cache_dir / ".lock"
+        root_file = cache_dir / ".resolved_root"
 
         with meta_yaml.open("r", encoding="utf-8") as f:
             d = yaml.safe_load(f)
             assert isinstance(d, dict), type(d)
-
             yaml_files = d["yaml_files"]
             files = d["files"]
             assert isinstance(yaml_files, dict), type(yaml_files)
             assert isinstance(files, dict), type(files)
 
-        # Rewrite yaml_files for first case
-        with FileLock(lock_file):
-            if not flag_file.exists():
-                for key, value in yaml_files.items():
-                    yaml_file = Path(cache_dir) / value
-                    with yaml_file.open("r", encoding="utf-8") as f:
-                        d = yaml.safe_load(f)
-                        assert isinstance(d, dict), type(d)
-                        for name in Path(cache_dir).glob("**/*"):
-                            name = name.relative_to(Path(cache_dir))
-                            d = find_path_and_change_it_recursive(
-                                d, name, str(Path(cache_dir) / name)
-                            )
-
-                    with yaml_file.open("w", encoding="utf-8") as f:
-                        yaml.safe_dump(d, f)
-
-                with flag_file.open("w"):
-                    pass
-
         retval = {}
-        for key, value in list(yaml_files.items()) + list(files.items()):
-            retval[key] = str(Path(cache_dir) / value)
+        with FileLock(lock_file):
+            stale = not root_file.exists() or root_file.read_text(
+                encoding="utf-8"
+            ).strip() != str(cache_dir)
+            for key, value in yaml_files.items():
+                src = cache_dir / value
+                dst = src.with_name(src.stem + ".resolved" + src.suffix)
+                if stale or not dst.exists():
+                    with src.open("r", encoding="utf-8") as f:
+                        config = yaml.safe_load(f)
+                        assert isinstance(config, dict), type(config)
+                    with dst.open("w", encoding="utf-8") as f:
+                        yaml.safe_dump(_resolve_paths(config, cache_dir), f)
+                retval[key] = str(dst)
+            root_file.write_text(str(cache_dir), encoding="utf-8")
+
+        for key, value in files.items():
+            retval[key] = str(cache_dir / value)
         return retval
 
     def download(
