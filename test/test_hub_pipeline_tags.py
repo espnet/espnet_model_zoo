@@ -1,6 +1,11 @@
 import pytest
 
-from espnet_model_zoo.hub_pipeline_tags import infer
+from espnet_model_zoo.hub_pipeline_tags import (
+    fix_language,
+    has_model_files,
+    infer,
+    update_card_data,
+)
 
 META_ASR = (
     "files:\n  asr_model_file: exp/a.pth\nyaml_files:\n  asr_train_config: exp/c.yaml\n"
@@ -103,3 +108,44 @@ def test_a_failed_meta_fetch_also_leaves_the_row_undecided(monkeypatch):
     monkeypatch.setattr(hpt, "_get_text", boom)
     tag, evidence = hpt.plan_one("espnet/x_tts_x", [])
     assert tag == "" and "fetch error" in evidence
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        ("noinfo", None),
+        ("jp", "ja"),
+        ("en", "en"),
+        (["en", "noinfo"], ["en"]),
+        (["jp", "ja"], ["ja"]),
+        (["noinfo"], None),
+        (None, None),
+    ],
+)
+def test_fix_language(value, expected):
+    assert fix_language(value) == expected
+
+
+def test_update_card_data_adds_the_tag_and_repairs_language():
+    data = {"tags": ["espnet"], "language": "noinfo"}
+    notes = update_card_data(data, "voice-activity-detection")
+    assert data == {"tags": ["espnet"], "pipeline_tag": "voice-activity-detection"}
+    assert len(notes) == 2
+
+
+def test_update_card_data_keeps_a_tag_set_by_hand():
+    data = {"pipeline_tag": "audio-classification", "language": "en"}
+    assert update_card_data(data, "automatic-speech-recognition") == []
+    assert data["pipeline_tag"] == "audio-classification"
+
+
+def test_update_card_data_leaves_a_valid_language_alone():
+    data = {"language": ["en", "de"]}
+    assert update_card_data(data, "translation") == ["pipeline_tag: translation"]
+    assert data["language"] == ["en", "de"]
+
+
+def test_has_model_files_ignores_git_metadata_and_the_card():
+    assert not has_model_files([".gitattributes"])
+    assert not has_model_files([".gitattributes", "README.md"])
+    assert has_model_files([".gitattributes", "exp/model.pth"])

@@ -222,8 +222,69 @@ def plan(out_path: str) -> None:
     )
 
 
-def apply(plan_path: str, dry_run: bool) -> None:
-    from huggingface_hub import metadata_update
+# Values the old ESPnet upload script wrote into ``language`` that the Hub's
+# validator now rejects: "noinfo" meant unknown, "jp" is not an ISO 639 code.
+_LANGUAGE_FIXES = {"noinfo": None, "jp": "ja"}
+
+
+def fix_language(value):
+    """Return ``value`` with the known-invalid language codes repaired.
+
+    ``None`` means the key should be removed. A list keeps its order, drops
+    the codes that stand for "unknown" and de-duplicates after mapping.
+    """
+    if value is None:
+        return None
+    values = value if isinstance(value, list) else [value]
+    fixed: List[str] = []
+    for v in values:
+        v = _LANGUAGE_FIXES.get(str(v), str(v))
+        if v is not None and v not in fixed:
+            fixed.append(v)
+    if not fixed:
+        return None
+    return fixed if isinstance(value, list) else fixed[0]
+
+
+_NOT_MODEL_FILES = {".gitattributes", "README.md"}
+
+
+def has_model_files(files: List[str]) -> bool:
+    """False for a repository that holds nothing but git metadata and a card."""
+    return any(f not in _NOT_MODEL_FILES for f in files)
+
+
+def update_card_data(data: Dict, pipeline_tag: str) -> List[str]:
+    """Apply the plan's tag and the language repair to a card's metadata dict.
+
+    Returns a human-readable note per change; an empty list means the card
+    needs no push. A ``pipeline_tag`` someone set by hand in the meantime wins.
+    """
+    notes = []
+    if not data.get("pipeline_tag"):
+        data["pipeline_tag"] = pipeline_tag
+        notes.append(f"pipeline_tag: {pipeline_tag}")
+    if "language" in data:
+        fixed = fix_language(data["language"])
+        if fixed != data["language"]:
+            notes.append(f"language: {data['language']!r} -> {fixed!r}")
+            if fixed is None:
+                del data["language"]
+            else:
+                data["language"] = fixed
+    return notes
+
+
+def apply(plan_path: str, dry_run: bool) -> int:
+    """Push the plan; returns the number of models that could not be updated.
+
+    Every model is tried: a card the Hub rejects (an invalid value elsewhere
+    in its metadata, say) is reported and the run goes on. ``--dry-run``
+    still loads each card and runs the Hub's validator on the result, so it
+    shows the failures without writing anything.
+    """
+    from huggingface_hub import HfApi, ModelCard
+    from huggingface_hub.errors import EntryNotFoundError
 
     with open(plan_path, newline="", encoding="utf-8") as f:
         rows = [r for r in csv.DictReader(f) if r["pipeline_tag"]]
@@ -231,17 +292,52 @@ def apply(plan_path: str, dry_run: bool) -> None:
         f"{len(rows)} models to tag" + (" (dry run)" if dry_run else ""),
         file=sys.stderr,
     )
+    api = HfApi()
+    failed = []
+    skipped_empty = []
     for r in rows:
-        print(f"{r['model']}: {r['pipeline_tag']}   [{r['evidence']}]")
-        if not dry_run:
-            # overwrite=False: a tag someone set by hand in the meantime wins.
-            metadata_update(
-                r["model"],
-                {"pipeline_tag": r["pipeline_tag"]},
-                repo_type="model",
-                overwrite=False,
-                commit_message=f"Set pipeline_tag: {r['pipeline_tag']}",
-            )
+        mid = r["model"]
+        try:
+            if not has_model_files(api.list_repo_files(mid)):
+                # a tag would list an empty repository under the task
+                print(f"{mid}: empty repository, skipped", file=sys.stderr)
+                skipped_empty.append(mid)
+                continue
+            try:
+                card = ModelCard.load(mid)
+            except EntryNotFoundError:
+                # no README.md yet: the push creates one holding only metadata
+                card = ModelCard("")
+            data = card.data.to_dict()
+            notes = update_card_data(data, r["pipeline_tag"])
+            if not notes:
+                print(f"{mid}: already tagged, skipped")
+                continue
+            card.data = type(card.data)(**data)
+            print(f"{mid}: {'; '.join(notes)}   [{r['evidence']}]")
+            if dry_run:
+                card.validate(repo_type="model")
+            else:
+                card.push_to_hub(
+                    mid,
+                    repo_type="model",
+                    commit_message=f"Set pipeline_tag: {r['pipeline_tag']}",
+                )
+        except Exception as e:  # keep going; the summary names every failure
+            first = (str(e).strip().splitlines() or [type(e).__name__])[0]
+            print(f"{mid}: FAILED {type(e).__name__}: {first}", file=sys.stderr)
+            failed.append((mid, first))
+    if skipped_empty:
+        print(
+            f"\n{len(skipped_empty)} empty repositories skipped: "
+            + ", ".join(skipped_empty),
+            file=sys.stderr,
+        )
+    if failed:
+        print(f"\n{len(failed)} of {len(rows)} models failed:", file=sys.stderr)
+        for mid, why in failed:
+            print(f"  {mid}: {why}", file=sys.stderr)
+    return len(failed)
 
 
 def main() -> None:
@@ -258,7 +354,7 @@ def main() -> None:
     if a.cmd == "plan":
         plan(a.out)
     else:
-        apply(a.plan, a.dry_run)
+        sys.exit(1 if apply(a.plan, a.dry_run) else 0)
 
 
 if __name__ == "__main__":
