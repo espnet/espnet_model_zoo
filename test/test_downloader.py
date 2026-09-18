@@ -404,3 +404,44 @@ def test_unpack_repairs_a_config_an_older_version_rewrote(tmp_path):
     assert config["token_list"] == [".", "exp"]
     assert config["brctc_risk_strategy"] == "exp"
     assert config["bpemodel"] == str(root / "data/token_list/bpe.model")
+
+
+def test_unresolve_paths_strips_a_prefix_from_a_moved_snapshot(tmp_path):
+    root = _snapshot(tmp_path)
+    # damage done while the cache lived somewhere else
+    old_root = "/somewhere/else/snapshots/abc"
+    config = {
+        "token_list": [".", f"{old_root}/exp"],
+        "brctc_risk_strategy": f"{old_root}/exp",
+        "stats_file": f"{old_root}/exp/asr_stats/train/feats_stats.npz",
+    }
+    assert _unresolve_paths(config, root) == {
+        "token_list": [".", "exp"],
+        "brctc_risk_strategy": "exp",
+        "stats_file": "exp/asr_stats/train/feats_stats.npz",
+    }
+
+
+def test_unresolve_paths_keeps_an_absolute_path_with_no_counterpart(tmp_path):
+    root = _snapshot(tmp_path)
+    outside = "/opt/models/whatever/model.pth"
+    assert _unresolve_paths({"x": outside}, root) == {"x": outside}
+
+
+def test_unpack_repairs_a_config_rewritten_before_the_cache_moved(tmp_path):
+    root = _snapshot(tmp_path)
+    (root / "meta.yaml").write_text(
+        "files: {}\nyaml_files:\n  train_config: exp/config.yaml\n", encoding="utf-8"
+    )
+    (root / "exp" / "config.yaml").write_text(
+        "token_list:\n- '.'\n- /gone/snapshots/abc/exp\n"
+        "bpemodel: /gone/snapshots/abc/data/token_list/bpe.model\n",
+        encoding="utf-8",
+    )
+
+    out = ModelDownloader._unpack_cache_dir_for_huggingface(str(root))
+
+    with open(out["train_config"], encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+    assert config["token_list"] == [".", "exp"]
+    assert config["bpemodel"] == str(root / "data/token_list/bpe.model")

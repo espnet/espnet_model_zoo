@@ -156,10 +156,25 @@ def _unresolve_paths(value, root: Path):
         return [_unresolve_paths(v, root) for v in value]
     if not isinstance(value, str) or not value:
         return value
-    prefix = str(root) + os.sep
     if value == str(root):
         return "."
-    return value[len(prefix) :] if value.startswith(prefix) else value
+    prefix = str(root) + os.sep
+    if value.startswith(prefix):
+        return value[len(prefix) :]
+    candidate = Path(value)
+    if not candidate.is_absolute():
+        return value
+    # The cache may have moved since the damage was done, so the prefix to
+    # strip is not always this root. Take the longest tail that exists here;
+    # "exp" comes back as the word it was, and "exp/stats.npz" as a relative
+    # reference that the resolve step turns absolute again.
+    parts = candidate.parts
+    for i in range(1, len(parts)):
+        tail = Path(*parts[i:])
+        healed = root / tail
+        if _inside(healed, root) and healed.exists():
+            return str(tail)
+    return value
 
 
 def _resolve_paths(value, root: Path):
