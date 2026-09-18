@@ -210,6 +210,21 @@ def _resolve_paths(value, root: Path):
     return value
 
 
+def _sidecar_dir(cache_dir: Path) -> Path:
+    """Where to keep resolved configs for a snapshot that cannot be written to.
+
+    Named after the snapshot's path, so two read-only snapshots do not share
+    a directory and a moved one gets fresh sidecars rather than stale ones.
+    """
+    return (
+        Path.home()
+        / ".cache"
+        / "espnet_model_zoo"
+        / "resolved"
+        / str_to_hash(cache_dir)
+    )
+
+
 def _inside(path: Path, root: Path) -> bool:
     """Lexical containment: does ``path`` stay under ``root``?
 
@@ -455,8 +470,16 @@ class ModelDownloader:
         """
         cache_dir = Path(cache_dir)
         meta_yaml = cache_dir / "meta.yaml"
-        lock_file = cache_dir / ".lock"
-        root_file = cache_dir / ".resolved_root"
+        # The sidecars normally live beside the configs, which keeps a model
+        # self-contained. A snapshot that cannot be written to - a cache
+        # shared read-only on a cluster, or baked into an image - gets them
+        # in the user's own cache instead, under a directory named after the
+        # snapshot, rather than failing to load at all.
+        work_dir = (
+            cache_dir if os.access(cache_dir, os.W_OK) else _sidecar_dir(cache_dir)
+        )
+        lock_file = work_dir / ".lock"
+        root_file = work_dir / ".resolved_root"
 
         if not meta_yaml.exists():
             # Uploaded by hand rather than packed: nothing says which file is
@@ -495,7 +518,9 @@ class ModelDownloader:
             )
             for key, value in yaml_files.items():
                 src = cache_dir / value
-                dst = src.with_name(src.stem + ".resolved" + src.suffix)
+                dst = work_dir / value
+                dst = dst.with_name(dst.stem + ".resolved" + dst.suffix)
+                dst.parent.mkdir(parents=True, exist_ok=True)
                 if stale or not dst.exists():
                     with src.open("r", encoding="utf-8") as f:
                         config = yaml.safe_load(f)
