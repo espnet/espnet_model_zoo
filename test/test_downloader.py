@@ -210,3 +210,75 @@ def test_paths_leading_out_of_the_snapshot_are_left_alone(tmp_path):
     assert resolved["bpemodel"] == str(snap / "data" / "bpe.model")
     # exists, but outside the snapshot: not bound into the sidecar
     assert resolved["normalize_conf"]["stats_file"] == "../other.npz"
+
+
+class _FakeResponse:
+    def __init__(self, chunks, fail_after=None):
+        self.headers = {"content-length": str(sum(len(c) for c in chunks))}
+        self._chunks, self._fail_after = chunks, fail_after
+
+    def raise_for_status(self):
+        pass
+
+    def iter_content(self, chunk_size):
+        for i, c in enumerate(self._chunks):
+            if self._fail_after is not None and i == self._fail_after:
+                raise ConnectionError("cut")
+            yield c
+
+
+class _FakeSession:
+    response = None
+
+    def mount(self, *a, **k):
+        pass
+
+    def get(self, url, stream, timeout):
+        return self.response
+
+
+def test_download_writes_beside_the_target_and_renames(tmp_path, monkeypatch):
+    import requests
+
+    _FakeSession.response = _FakeResponse([b"abc", b"def"])
+    monkeypatch.setattr(requests, "Session", _FakeSession)
+    out = tmp_path / "models" / "m.zip"
+    download("http://x/m.zip", out, quiet=True)
+    assert out.read_bytes() == b"abcdef"
+    # no part file left next to it
+    assert [p.name for p in out.parent.iterdir()] == ["m.zip"]
+
+
+def test_interrupted_download_leaves_nothing_behind(tmp_path, monkeypatch):
+    import requests
+
+    _FakeSession.response = _FakeResponse([b"abc", b"def"], fail_after=1)
+    monkeypatch.setattr(requests, "Session", _FakeSession)
+    out = tmp_path / "m.zip"
+    with pytest.raises(ConnectionError):
+        download("http://x/m.zip", out, quiet=True)
+    assert not out.exists()
+    assert list(tmp_path.iterdir()) == []  # the .part file is gone too
+
+
+def test_file_name_is_a_bare_name_whatever_the_server_says(monkeypatch):
+    import requests
+
+    class Head:
+        headers = {"Content-Disposition": 'attachment; filename="../../evil.zip"'}
+
+    monkeypatch.setattr(requests, "head", lambda url, **kw: Head())
+    assert ModelDownloader._get_file_name("http://x/dl") == "evil.zip"
+    zenodo = "https://zenodo.org/record/1/files/asr_train.zip?download=1"
+    assert ModelDownloader._get_file_name(zenodo) == "asr_train.zip"
+    Head.headers = {}
+    assert ModelDownloader._get_file_name("http://x/path/model.tgz?a=1") == "model.tgz"
+    Head.headers = {"Content-Disposition": "attachment; filename=.."}
+    with pytest.raises(ValueError):
+        ModelDownloader._get_file_name("http://x/")
+    # download() keeps its own "url" note and unpack() its meta.yaml in the
+    # same directory; an archive under either name would be clobbered
+    Head.headers = {"Content-Disposition": "attachment; filename=url"}
+    assert ModelDownloader._get_file_name("http://x/dl") == "download_url"
+    Head.headers = {"Content-Disposition": "attachment; filename=meta.yaml"}
+    assert ModelDownloader._get_file_name("http://x/dl") == "download_meta.yaml"
