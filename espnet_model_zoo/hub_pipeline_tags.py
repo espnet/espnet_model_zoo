@@ -9,9 +9,12 @@ infers one from, in order of trust, the constructor keys in its meta.yaml
 (asr_train_config -> ASR), the task prefix of its exp/ directory, and words in
 its name and tags. It writes one row per model with the evidence and leaves
 the tag empty when nothing decides it, so the CSV can be edited before
-`apply` pushes the tag into each model card's front matter with
-huggingface_hub.metadata_update. `apply` needs a token with write access to
-the organisation (`hf auth login`); `plan` needs no token.
+`apply` rewrites each model card's front matter: it sets the tag (leaving a
+tag someone set by hand alone) and repairs the language codes the Hub's
+validator rejects. It reports every model it could not update and exits
+non-zero if any failed; `--dry-run` runs the Hub's validator without writing.
+`apply` needs a token with write access to the organisation (`hf auth
+login`); `plan` needs no token.
 
 A model without a pipeline_tag does not appear when the Hub is filtered by
 task, and gets no task widget: 268 of the organisation's 667 models were in
