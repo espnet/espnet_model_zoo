@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -6,6 +7,7 @@ import yaml
 from espnet_model_zoo.downloader import (
     ModelDownloader,
     _resolve_paths,
+    _sidecar_dir,
     _unresolve_paths,
     cmd_download,
     cmd_query,
@@ -445,3 +447,46 @@ def test_unpack_repairs_a_config_rewritten_before_the_cache_moved(tmp_path):
         config = yaml.safe_load(f)
     assert config["token_list"] == [".", "exp"]
     assert config["bpemodel"] == str(root / "data/token_list/bpe.model")
+
+
+def test_unpack_uses_the_user_cache_when_the_snapshot_is_read_only(
+    tmp_path, monkeypatch
+):
+    root = _snapshot(tmp_path / "snap")
+    (root / "meta.yaml").write_text(
+        "files:\n  model_file: exp/asr_stats/train/feats_stats.npz\n"
+        "yaml_files:\n  train_config: exp/config.yaml\n",
+        encoding="utf-8",
+    )
+    (root / "exp" / "config.yaml").write_text(
+        "token_list:\n- '.'\n- exp\nbpemodel: data/token_list/bpe.model\n",
+        encoding="utf-8",
+    )
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: home))
+    for path in sorted(root.rglob("*"), reverse=True):
+        os.chmod(path, 0o555 if path.is_dir() else 0o444)
+    os.chmod(root, 0o555)
+    try:
+        out = ModelDownloader._unpack_cache_dir_for_huggingface(str(root))
+
+        # the resolved config is in the user's cache, the weights stay in the
+        # snapshot, and the paths inside still point at the snapshot
+        assert str(out["train_config"]).startswith(str(home))
+        assert str(out["model_file"]).startswith(str(root))
+        with open(out["train_config"], encoding="utf-8") as f:
+            config = yaml.safe_load(f)
+        assert config["bpemodel"] == str(root / "data/token_list/bpe.model")
+        assert config["token_list"] == [".", "exp"]
+        assert not (root / ".resolved_root").exists()
+    finally:
+        os.chmod(root, 0o755)
+        for path in root.rglob("*"):
+            os.chmod(path, 0o755)
+
+
+def test_read_only_snapshots_do_not_share_a_sidecar_directory(tmp_path):
+    a = _sidecar_dir(tmp_path / "snapshots" / "aaa")
+    b = _sidecar_dir(tmp_path / "snapshots" / "bbb")
+    assert a != b
