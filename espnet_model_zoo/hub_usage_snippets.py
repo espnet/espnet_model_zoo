@@ -69,24 +69,29 @@ CLI_COMMAND = {
 }
 
 PYTHON_SNIPPET = {
-    "asr": """import soundfile as sf
+    "asr": """import librosa
 from espnet2.bin.asr_inference import Speech2Text
 
 speech2text = Speech2Text.from_pretrained(model_tag="{tag}")
-speech, rate = sf.read("audio.wav")  # a single channel, at the model's rate
+# librosa resamples and mixes to one channel, so any file works; 16000 is
+# what nearly every espnet recogniser is trained on - check this model's
+# config if its audio is not 16 kHz
+speech, rate = librosa.load("audio.wav", sr=16000, mono=True)
 text, *_ = speech2text(speech)[0]
 print(text)""",
     # The attention decoder is driven by the language and task symbols; both
     # can also be given per utterance, as s2t(speech, lang_sym=..., ...).
-    "s2t": """import soundfile as sf
+    "s2t": """import librosa
 from espnet2.bin.s2t_inference import Speech2Text
 
 s2t = Speech2Text.from_pretrained(
     model_tag="{tag}", lang_sym="<eng>", task_sym="<asr>", beam_size=5
 )
-speech, rate = sf.read("audio.wav")  # 16 kHz; padded or trimmed to 30 s
-text, *_ = s2t(speech)[0]
-print(text)""",
+# OWSM is trained on 16 kHz; each call decodes 30 s, padded or trimmed
+speech, rate = librosa.load("audio.wav", sr=16000, mono=True)
+text, token, token_int, text_nospecial, hyp = s2t(speech)[0]
+print(text_nospecial)  # `text` keeps OWSM's own <eng><asr> markers
+# for a recording longer than 30 s: s2t.decode_long(speech) -> (start, end, text)""",
     # batch_decode takes the audio path itself and handles long-form audio by
     # chunking it, which is what makes OWSM-CTC worth using from Python.
     "s2t_ctc": """from espnet2.bin.s2t_inference_ctc import Speech2TextGreedySearch
@@ -106,14 +111,24 @@ sf.write("out.wav", output["wav"].view(-1).cpu().numpy(), tts.fs)""",
 from espnet2.bin.enh_inference import SeparateSpeech
 
 enh = SeparateSpeech.from_pretrained(model_tag="{tag}")
+# channels are kept on the way in: a multi-channel model needs them
 speech, rate = sf.read("noisy.wav", dtype="float32")
 waves = enh(speech[None, ...], fs=rate)
-sf.write("enhanced.wav", waves[0][0], rate)""",
-    "spk": """import soundfile as sf
+# one wave per output stream, which is what tells the two tasks apart: an
+# enhancement model returns one, a separation model one per speaker. This is
+# what `espnet enhance` writes as enhanced.wav or enhanced.spk1.wav, ...
+if len(waves) == 1:
+    sf.write("enhanced.wav", waves[0][0], rate)
+else:
+    for i, wave in enumerate(waves, start=1):
+        sf.write(f"enhanced.spk{{i}}.wav", wave[0], rate)""",
+    "spk": """import librosa
 from espnet2.bin.spk_inference import Speech2Embedding
 
 speech2embedding = Speech2Embedding.from_pretrained(model_tag="{tag}")
-speech, rate = sf.read("audio.wav")  # 16 kHz
+# the speaker models are trained on 16 kHz mono; librosa gives that from
+# whatever the file holds
+speech, rate = librosa.load("audio.wav", sr=16000, mono=True)
 embedding = speech2embedding(speech)  # (1, embedding_dim)""",
 }
 
@@ -195,19 +210,52 @@ def task_from_name(model_id: str, tags: List[str]) -> Optional[Tuple[str, str]]:
     return None
 
 
-def refine_s2t(task: str, model_id: str, files: List[str]) -> str:
+def _model_line(model_id: str, files: List[str]) -> Optional[str]:
+    """The `model:` of a packed model's training config, if it has one.
+
+    The config is the checkpoint's own answer, where a name is a guess: this
+    is the same line `espnet2.bin.s2t_inference` reads to decide which model
+    to build. It is one file rather than the repository, so the cost is a
+    request per s2t model at plan time, and none at apply time.
+    """
+    configs = [
+        f for f in files if f.startswith("exp") and f.endswith(("config.yaml", ".yml"))
+    ]
+    if not configs:
+        return None
+    try:
+        text = _get_text(f"https://huggingface.co/{model_id}/raw/main/{configs[0]}")
+    except (FetchError, OSError):  # a private or moved file is not a verdict
+        return None
+    m = re.search(r"^model:\s*(\S+)", text, re.M)
+    return m.group(1) if m else None
+
+
+def refine_s2t(task: str, model_id: str, files: List[str]) -> Tuple[str, str]:
     """Split the s2t models into the CTC and the attention decoder.
 
-    They are two different classes with two different calls, and they pack
-    identical keys, so the recipe name in the exp/ directory - or the model's
-    own name, for the ones packed from a directory that does not carry it -
-    is the only evidence short of downloading a 50000-line config.
+    They are two different classes with two different calls and they pack
+    identical keys, so the split has to come from somewhere else. The
+    training config says it outright - `model: espnet_ctc` is what
+    `s2t_inference` itself reads - so that is asked first, and the name is
+    the fallback for the checkpoints packed before that key existed
+    (owsm_v1) or without a config in the repository.
+
+    Asking the config is what keeps a future joint CTC/attention S2T model
+    from being read as CTC-only because of the word in its name.
     """
     if task != "s2t":
-        return task
+        return task, ""
+    model = _model_line(model_id, files)
+    if model == "espnet_ctc":
+        return "s2t_ctc", "config says model: espnet_ctc"
+    if model:
+        return "s2t", f"config says model: {model}"
     names = [f.rsplit("/", 1)[0] for f in files if f.startswith("exp")]
     names.append(model_id.split("/", 1)[-1])
-    return "s2t_ctc" if any(_OWSM_CTC.search(n) for n in names) else "s2t"
+    if any(_OWSM_CTC.search(n) for n in names):
+        return "s2t_ctc", "no config to read; the name says CTC"
+    return "s2t", "no config to read; the name does not say CTC"
 
 
 def infer_task(
@@ -222,7 +270,11 @@ def infer_task(
         hit = source()
         if hit:
             task, evidence = hit
-            return refine_s2t(task, model_id, files), evidence
+            refined, why = refine_s2t(task, model_id, files)
+            # the refinement overrides the task, so it has to override the
+            # evidence too: a plan that says "file exp/s2t_train.../config"
+            # for a model split by its config is a plan that cannot be checked
+            return refined, f"{evidence}; {why}" if why else evidence
     return "", "no evidence"
 
 

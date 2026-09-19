@@ -1,5 +1,6 @@
 import pytest
 
+from espnet_model_zoo import hub_usage_snippets
 from espnet_model_zoo.hub_usage_snippets import (
     SNIPPET_CLASS,
     already_documented,
@@ -8,6 +9,29 @@ from espnet_model_zoo.hub_usage_snippets import (
     snippet_for,
     split_front_matter,
 )
+
+
+@pytest.fixture(autouse=True)
+def no_network(monkeypatch):
+    """No test reaches the Hub; the ones that need a config say so."""
+
+    def refuse(url, timeout=60):
+        raise AssertionError(f"a test asked the network for {url}")
+
+    monkeypatch.setattr(hub_usage_snippets, "_get_text", refuse)
+
+
+@pytest.fixture()
+def config_says(monkeypatch):
+    """Answer the one config request refine_s2t makes, with this text."""
+
+    def use(text):
+        monkeypatch.setattr(
+            hub_usage_snippets, "_get_text", lambda url, timeout=60: text
+        )
+
+    return use
+
 
 META_ASR = (
     "files:\n  asr_model_file: exp/a.pth\nyaml_files:\n  asr_train_config: exp/c.yaml\n"
@@ -97,16 +121,53 @@ def test_an_espnet3_bundle_is_not_given_an_espnet2_snippet():
     assert task == "" and "espnet3" in evidence
 
 
-def test_owsm_ctc_is_separated_from_the_attention_decoder():
-    ctc, _ = infer_task("espnet/owsm_ctc_v4_1B", [], ["meta.yaml"], META_S2T)
-    assert ctc == "s2t_ctc"
-    attention, _ = infer_task(
+def test_owsm_ctc_is_separated_from_the_attention_decoder(config_says):
+    # no config in the repository: the name is all there is
+    ctc, why = infer_task("espnet/owsm_ctc_v4_1B", [], ["meta.yaml"], META_S2T)
+    assert ctc == "s2t_ctc" and "the name says CTC" in why
+
+    config_says("model: espnet\nencoder: conformer\n")
+    attention, why = infer_task(
         "espnet/owsm_v4_medium_1B",
         [],
         ["exp/s2t_train_conv2d8_size1024_e18_d18_mel128_raw_bpe50000/config.yaml"],
         None,
     )
-    assert attention == "s2t"
+    assert attention == "s2t" and "model: espnet" in why
+
+
+def test_the_config_decides_the_split_over_the_name(config_says):
+    # the case the name rule cannot get right: a joint CTC/attention S2T
+    # model whose name happens to carry the word. The config says what the
+    # checkpoint is, and it is the same line s2t_inference itself reads.
+    config_says("model: espnet\nmodel_conf:\n    ctc_weight: 0.3\n")
+    task, why = infer_task(
+        "espnet/some_s2t_ctc_hybrid",
+        [],
+        ["exp/s2t_train_hybrid/config.yaml"],
+        META_S2T,
+    )
+    assert task == "s2t" and "config says model: espnet" in why
+
+    # and the other way: a CTC-only checkpoint whose name says nothing
+    config_says("model: espnet_ctc\n")
+    task, why = infer_task(
+        "espnet/unassuming_name", [], ["exp/s2t_train_x/config.yaml"], META_S2T
+    )
+    assert task == "s2t_ctc" and "espnet_ctc" in why
+
+
+def test_an_unreachable_config_falls_back_to_the_name(monkeypatch):
+    from espnet_model_zoo.hub_pipeline_tags import FetchError
+
+    def fail(url, timeout=60):
+        raise FetchError("404")
+
+    monkeypatch.setattr(hub_usage_snippets, "_get_text", fail)
+    task, why = infer_task(
+        "espnet/owsm_ctc_v4_1B", [], ["exp/s2t_train_x/config.yaml"], META_S2T
+    )
+    assert task == "s2t_ctc" and "no config to read" in why
 
 
 def test_a_joint_ctc_attention_asr_recipe_is_not_owsm_ctc():
@@ -155,7 +216,12 @@ def test_names_decide_only_what_they_can(model_id, expected):
         ("exp/diar_enh_train_diar_enh_convtasnet_adapt/config.yaml", ""),
     ],
 )
-def test_the_exp_directory_is_read_wherever_the_recipe_put_it(path, expected):
+def test_the_exp_directory_is_read_wherever_the_recipe_put_it(
+    path, expected, config_says
+):
+    # this is about where the task is read from, not about the s2t split,
+    # so the one config an s2t path leads to is answered here
+    config_says("model: espnet\n")
     task, _ = infer_task("espnet/x", [], [path], None)
     assert task == expected
 
