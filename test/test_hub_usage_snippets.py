@@ -394,3 +394,26 @@ def test_plan_one_reports_a_task_that_has_no_snippet(monkeypatch):
     monkeypatch.setattr(hus, "_get_text", get_text)
     task, action, evidence = hus.plan_one("espnet/x", [])
     assert task == "diar" and action == "skip" and "no checked snippet" in evidence
+
+
+CARD_NO_TRAILING_NEWLINE = "---\ntags:\n- espnet\nlicense: cc-by-4.0\n---"
+
+
+def test_a_card_that_ends_at_its_closing_fence_is_still_edited():
+    # espnet/DCASE23.AudioCaptioning.PreTrained is front matter and nothing
+    # else, ending at --- with no newline. Writing the snippet straight on
+    # would join it to the fence and turn the metadata into body.
+    updated = insert_snippet(CARD_NO_TRAILING_NEWLINE, "## Usage\n\nhello\n")
+    assert updated.startswith("---\ntags:\n- espnet\nlicense: cc-by-4.0\n---\n\n")
+    assert "---## Usage" not in updated
+
+    front, body = split_front_matter(updated)
+    # the metadata is the same metadata; only the newline after the fence
+    # is new, which is what separates it from the body
+    assert front.rstrip() == CARD_NO_TRAILING_NEWLINE.rstrip()
+    assert body.strip() == "## Usage\n\nhello".strip()
+
+
+def test_the_snippet_is_not_inserted_twice_into_such_a_card():
+    once = insert_snippet(CARD_NO_TRAILING_NEWLINE, "## Usage\n\nhello\n")
+    assert already_documented(once) is not None

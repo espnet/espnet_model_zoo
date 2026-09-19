@@ -329,6 +329,12 @@ def insert_snippet(card: str, snippet: str) -> str:
     """
     front, body = split_front_matter(card)
     body = body.lstrip("\n")
+    # A card can end at its closing --- with no newline after it, and one
+    # in the espnet organisation does. The closing fence then has to grow
+    # that newline or the snippet's first line joins it, which would turn
+    # the fence into ordinary text and the metadata into body.
+    if front and not front.endswith("\n"):
+        front += "\n"
     out = front + ("\n" if front else "") + snippet.rstrip("\n") + "\n"
     if body:
         out += "\n" + body
@@ -476,7 +482,11 @@ def apply(plan_path: str, dry_run: bool) -> int:
                 print(f"{mid}: {documented}, skipped")
                 continue
             updated = insert_snippet(card, snippet)
-            if split_front_matter(updated)[0] != split_front_matter(card)[0]:
+            # rstrip: the guard is about the metadata, and the newline that
+            # ends the closing fence is punctuation between it and the body,
+            # which a card that had none has to be given.
+            before = split_front_matter(card)[0].rstrip()
+            if split_front_matter(updated)[0].rstrip() != before:
                 raise AssertionError("front matter changed")
             print(f"{mid}: {task} snippet, {SNIPPET_CLASS[task]}   [{r['evidence']}]")
             _repair_gitattributes(api, mid, dry_run)
