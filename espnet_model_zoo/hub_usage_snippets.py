@@ -473,6 +473,10 @@ def why_the_hub_refused(card: str) -> Optional[str]:
         data = yaml.safe_load(front.strip().strip("-").strip()) or {}
     except Exception:  # pragma: no cover - the Hub's message is all there is
         return "the front matter is not valid YAML"
+    if not isinstance(data, dict):
+        # a list or a bare scalar between the fences parses without error
+        # and has no keys; saying so is the diagnosis
+        return "the front matter is not a mapping of keys to values"
     empty = [k for k, v in data.items() if v is None or v == ""]
     if empty:
         keys = ", ".join(sorted(empty))
@@ -541,9 +545,15 @@ def apply(plan_path: str, dry_run: bool) -> int:
         except Exception as e:  # keep going; the summary names every failure
             first = (str(e).strip().splitlines() or [type(e).__name__])[0]
             if "Invalid metadata" in first:
-                # the card was already unpublishable before this tool saw
-                # it, and the Hub will not say which part
-                first = why_the_hub_refused(locals().get("updated") or "") or first
+                # The card was already unpublishable before this tool saw it,
+                # and the Hub will not say which part. This runs inside the
+                # handler for another failure, so it may not raise one of its
+                # own: that would escape the loop and take the cards after
+                # this one with it, which is the opposite of the point.
+                try:
+                    first = why_the_hub_refused(locals().get("updated") or "") or first
+                except Exception as diagnosis_failed:  # pragma: no cover
+                    first = f"{first} (could not say why: {diagnosis_failed})"
             print(f"{mid}: FAILED {type(e).__name__}: {first}", file=sys.stderr)
             failed.append((mid, first))
     if failed:

@@ -616,9 +616,12 @@ def _front_matter_keys(card_text: str) -> dict:
     if not m:
         return {}
     try:
-        return yaml.safe_load(m.group(1)) or {}
+        data = yaml.safe_load(m.group(1)) or {}
     except Exception:  # pragma: no cover - an unparseable card is not ours to fix
         return {}
+    # a list or a bare scalar between the fences parses without error and has
+    # no keys; the caller wants keys, and the Hub will refuse the card anyway
+    return data if isinstance(data, dict) else {}
 
 
 def main() -> None:

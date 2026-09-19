@@ -452,3 +452,15 @@ def test_a_card_the_hub_accepts_has_nothing_said_about_it(monkeypatch):
 
 def test_a_card_without_front_matter_is_not_the_metadata_s_fault():
     assert hub_usage_snippets.why_the_hub_refused("no front matter here\n") is None
+
+
+@pytest.mark.parametrize(
+    "front_matter",
+    ["---\n- espnet\n- audio\n---\n\nbody\n", "---\njust a string\n---\n\nbody\n"],
+)
+def test_front_matter_that_is_not_a_mapping_is_reported_not_raised(front_matter):
+    # a list or a bare scalar between the fences parses without error and has
+    # no keys. This runs inside the handler for a failed push, so raising
+    # here would escape the loop and take every card after it.
+    said = hub_usage_snippets.why_the_hub_refused(front_matter)
+    assert said == "the front matter is not a mapping of keys to values"

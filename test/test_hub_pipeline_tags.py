@@ -327,3 +327,12 @@ def test_a_card_the_hub_accepts_is_left_exactly_as_it_is():
     data = {"tags": ["espnet"], "language": "en", "license": "cc-by-4.0"}
     out, notes = drop_unpublishable_metadata(dict(data), [])
     assert out == data and notes == []
+
+
+@pytest.mark.parametrize(
+    "card", ["---\n- espnet\n---\n\nbody\n", "---\njust a string\n---\n\nbody\n"]
+)
+def test_front_matter_that_is_not_a_mapping_has_no_keys(card):
+    from espnet_model_zoo.hub_pipeline_tags import _front_matter_keys
+
+    assert _front_matter_keys(card) == {}
