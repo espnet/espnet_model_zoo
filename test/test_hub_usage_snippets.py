@@ -417,3 +417,38 @@ def test_a_card_that_ends_at_its_closing_fence_is_still_edited():
 def test_the_snippet_is_not_inserted_twice_into_such_a_card():
     once = insert_snippet(CARD_NO_TRAILING_NEWLINE, "## Usage\n\nhello\n")
     assert already_documented(once) is not None
+
+
+def test_an_empty_front_matter_value_is_named(monkeypatch):
+    # `language:` with nothing after it parses as null. The Hub rejects the
+    # commit and says only "Invalid metadata in README.md", and its own
+    # validator does not catch this one: loading the card drops the key
+    # before it is checked.
+    card = "---\ntags:\n- espnet\nlanguage: \nlicense: cc-by-4.0\n---\n\nbody\n"
+    said = hub_usage_snippets.why_the_hub_refused(card)
+    assert said is not None and "language" in said and "empty" in said
+
+
+def test_a_card_the_hub_accepts_has_nothing_said_about_it(monkeypatch):
+    calls = []
+
+    class Card:
+        def __init__(self, text):
+            pass
+
+        def validate(self, repo_type=None):
+            calls.append(repo_type)
+
+    monkeypatch.setattr(
+        hub_usage_snippets, "split_front_matter", hub_usage_snippets.split_front_matter
+    )
+    import huggingface_hub
+
+    monkeypatch.setattr(huggingface_hub, "ModelCard", Card)
+    card = "---\ntags:\n- espnet\nlanguage: en\n---\n\nbody\n"
+    assert hub_usage_snippets.why_the_hub_refused(card) is None
+    assert calls == ["model"]
+
+
+def test_a_card_without_front_matter_is_not_the_metadata_s_fault():
+    assert hub_usage_snippets.why_the_hub_refused("no front matter here\n") is None
