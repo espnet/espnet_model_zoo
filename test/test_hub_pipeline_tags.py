@@ -1,3 +1,5 @@
+from email.utils import format_datetime
+
 import pytest
 
 from espnet_model_zoo.hub_pipeline_tags import (
@@ -105,6 +107,40 @@ def test_rate_limiting_is_waited_out_rather_than_reported_as_a_failure(monkeypat
     monkeypatch.setattr(hpt.time, "sleep", lambda seconds: None)
     assert hpt._get("https://example/x") == {"ok": True}
     assert not answers
+
+
+@pytest.mark.parametrize(
+    "header, expected",
+    [
+        ("30", 30.0),
+        (None, 4.0),  # no header: the exponential backoff for attempt 2
+        ("not a number", 4.0),
+        ("nan", 4.0),
+        ("-5", 0.0),  # invalid, and it must not reach time.sleep
+        ("Mon, 21 Oct 2013 07:28:00 GMT", 0.0),  # an expired date means now
+        ("86400", 60.0),  # a server asking for a day must not stall the sweep
+    ],
+)
+def test_retry_after_is_parsed_and_bounded(header, expected):
+    from espnet_model_zoo import hub_pipeline_tags as hpt
+
+    class _Response:
+        headers = {} if header is None else {"Retry-After": header}
+
+    assert hpt.retry_delay(_Response(), 2) == expected
+
+
+def test_retry_after_may_be_an_http_date_in_the_future():
+    from datetime import datetime, timedelta, timezone
+
+    from espnet_model_zoo import hub_pipeline_tags as hpt
+
+    soon = datetime.now(timezone.utc) + timedelta(seconds=10)
+
+    class _Response:
+        headers = {"Retry-After": format_datetime(soon, usegmt=True)}
+
+    assert 5.0 < hpt.retry_delay(_Response(), 0) <= 10.0
 
 
 def test_rate_limiting_that_never_lets_up_is_a_fetch_error(monkeypatch):

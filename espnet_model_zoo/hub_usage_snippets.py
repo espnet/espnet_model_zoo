@@ -239,7 +239,11 @@ def snippet_for(task: str, model_id: str) -> str:
     return "\n".join(parts) + "\n"
 
 
-_FRONT_MATTER = re.compile(r"\A---[ \t]*\r?\n.*?\r?\n---[ \t]*\r?\n", re.S)
+# The closing fence may sit on the next line (a card with no metadata yet) or
+# at the end of the file with no newline after it. Failing to match either
+# would not lose the front matter loudly: it would make the whole card look
+# like body, and the snippet would be inserted above the opening ---.
+_FRONT_MATTER = re.compile(r"\A---[ \t]*\r?\n(?:.*?\r?\n)?---[ \t]*(?:\r?\n|\Z)", re.S)
 
 
 def split_front_matter(card: str) -> Tuple[str, str]:

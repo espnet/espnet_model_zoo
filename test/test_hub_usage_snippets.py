@@ -182,6 +182,21 @@ def test_a_card_without_front_matter_is_all_body():
     assert split_front_matter("# Hello\n") == ("", "# Hello\n")
 
 
+@pytest.mark.parametrize(
+    "card",
+    [
+        "---\n---\n",  # no metadata yet
+        "---\nlicense: cc-by-4.0\n---",  # the fence ends the file
+        "---\r\nlicense: cc-by-4.0\r\n---\r\n",
+    ],
+)
+def test_an_unusual_front_matter_block_is_still_front_matter(card):
+    front, body = split_front_matter(card)
+    assert front == card and body == ""
+    # the snippet must never end up above the opening fence
+    assert insert_snippet(card, snippet_for("tts", "espnet/x")).startswith(card)
+
+
 def test_front_matter_survives_a_rewrite():
     updated = insert_snippet(CARD, snippet_for("asr", "espnet/x"))
     assert updated.startswith(FRONT_MATTER)

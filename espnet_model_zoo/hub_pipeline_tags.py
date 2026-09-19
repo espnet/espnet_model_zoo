@@ -23,9 +23,12 @@ that state on 2026-09-17.
 
 import argparse
 import csv
+import email.utils
+import math
 import re
 import sys
 import time
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
 import requests
@@ -117,6 +120,35 @@ class FetchError(RuntimeError):
 # one and would spend the run's whole output on rows that say nothing.
 _RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
 _RETRIES = 5
+_MAX_RETRY_WAIT = 60.0
+
+
+def retry_delay(response: requests.Response, attempt: int) -> float:
+    """How long to wait before retrying ``response``.
+
+    Retry-After is either a count of seconds or an HTTP-date, and a server
+    may send neither or something malformed, so nothing here may depend on
+    it: a value that cannot be read falls back to the exponential backoff,
+    and every delay is capped, because this runs unattended over hundreds of
+    models and a server that asks for an hour would simply stall the sweep.
+    """
+    header = response.headers.get("Retry-After")
+    delay: Optional[float] = None
+    if header is not None:
+        try:
+            delay = float(header)
+        except ValueError:
+            try:
+                when = email.utils.parsedate_to_datetime(header)
+            except (TypeError, ValueError):
+                when = None
+            if when is not None:
+                if when.tzinfo is None:  # an HTTP-date without a zone is GMT
+                    when = when.replace(tzinfo=timezone.utc)
+                delay = (when - datetime.now(timezone.utc)).total_seconds()
+    if delay is None or math.isnan(delay):
+        delay = float(2**attempt)
+    return min(max(delay, 0.0), _MAX_RETRY_WAIT)
 
 
 def _request(url: str, timeout: float) -> requests.Response:
@@ -125,8 +157,7 @@ def _request(url: str, timeout: float) -> requests.Response:
         try:
             r = requests.get(url, timeout=timeout)
             if r.status_code in _RETRY_STATUS and attempt < _RETRIES - 1:
-                # Retry-After is seconds; the Hub does not always send it
-                time.sleep(float(r.headers.get("Retry-After", 2**attempt)))
+                time.sleep(retry_delay(r, attempt))
                 continue
             r.raise_for_status()
             return r
