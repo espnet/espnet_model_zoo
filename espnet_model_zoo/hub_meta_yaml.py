@@ -8,8 +8,9 @@ A model published with `espnet2.bin.pack` carries meta.yaml at its root: it
 names the training config and the checkpoint under the key names the task's
 inference class takes, and ModelDownloader hands those straight to the
 constructor. A repository uploaded by hand holds the same files with nothing
-saying which is which, so `download_and_unpack` refuses it and the user gets a
-FileNotFoundError from inside the cache.
+saying which is which, so `download_and_unpack` refuses it with a RuntimeError
+that lists the repository's files and tells the user to pass `train_config` and
+`model_file` themselves.
 
 `plan` works out, per repository, which file is the config, which is the
 checkpoint and what the task is, and writes one row per model with its
@@ -88,6 +89,27 @@ FILE_SUFFIXES = frozenset(
 
 NOT_MODEL_FILES = frozenset({".gitattributes", "README.md"})
 
+# The columns `apply` reads; `evidence` is for the person reading the CSV.
+APPLY_COLUMNS = (
+    "model",
+    "task",
+    "train_config",
+    "model_file",
+    "parent_commit",
+    "blockers",
+)
+
+# The columns `plan` writes.
+PLAN_COLUMNS = (
+    "model",
+    "task",
+    "train_config",
+    "model_file",
+    "parent_commit",
+    "evidence",
+    "blockers",
+)
+
 # A checkpoint file small enough to be a symlink stored as its target's name.
 SYMLINK_BYTES = 4096
 
@@ -97,6 +119,7 @@ class FetchError(RuntimeError):
 
 
 def _get(url: str):
+    """The JSON at `url`, or FetchError - never a partial answer."""
     try:
         r = requests.get(url, timeout=TIMEOUT)
         r.raise_for_status()
@@ -105,7 +128,26 @@ def _get(url: str):
         raise FetchError(f"{url}: {e}") from e
 
 
+def _get_paged(url: str) -> list:
+    """Every page of a list endpoint, following the Link header.
+
+    One call returns one page, and the organisation is larger than a page: a
+    model left out here would silently never get a meta.yaml.
+    """
+    items: list = []
+    while url:
+        try:
+            r = requests.get(url, timeout=TIMEOUT)
+            r.raise_for_status()
+        except requests.RequestException as e:
+            raise FetchError(f"{url}: {e}") from e
+        items += r.json()
+        url = r.links.get("next", {}).get("url", "")
+    return items
+
+
 def _get_text(url: str) -> str:
+    """The text at `url`, or FetchError."""
     try:
         r = requests.get(url, timeout=TIMEOUT)
         r.raise_for_status()
@@ -200,6 +242,7 @@ def symlink_target(path: str, text: str) -> Optional[str]:
 
 
 def _value_at(config: dict, keys: Sequence[str]):
+    """The value at a nested key path, or None if any level is absent."""
     node = config
     for key in keys:
         if not isinstance(node, dict) or key not in node:
@@ -210,7 +253,7 @@ def _value_at(config: dict, keys: Sequence[str]):
 
 def missing_inputs(config: dict, files: Sequence[str]) -> List[str]:
     """Files the config needs at load time that the repository does not have."""
-    present = set(files)
+    present = {posixpath.normpath(f) for f in files}
     missing = []
     for keys in INFERENCE_INPUTS:
         value = _value_at(config, keys)
@@ -220,7 +263,10 @@ def missing_inputs(config: dict, files: Sequence[str]) -> List[str]:
             continue
         if posixpath.splitext(value)[1] not in FILE_SUFFIXES:
             continue
-        if value not in present and value.lstrip("./") not in present:
+        # normpath, not lstrip("./"): lstrip removes a set of characters, so
+        # "/exp/a.npz" and "../x/a.model" would both be rewritten into a path
+        # that can match an unrelated file and hide a genuinely missing input.
+        if posixpath.normpath(value) not in present:
             missing.append(f"{'.'.join(keys)}={value}")
     return missing
 
@@ -238,7 +284,13 @@ def choose_pair(files: Sequence[str]) -> Tuple[str, str, bool]:
     ]
     checkpoints = [f for f in files if f.endswith((".pth", ".pt"))]
     if not configs or not checkpoints:
-        return "", "", False
+        # Return the side that is there, so the caller can say which one is
+        # missing instead of blaming the file the repository does hold.
+        return (
+            sorted(configs, key=_config_rank)[0] if configs else "",
+            sorted(checkpoints, key=checkpoint_rank)[0] if checkpoints else "",
+            False,
+        )
     by_directory: Dict[str, Tuple[List[str], List[str]]] = {}
     for f in configs:
         by_directory.setdefault(posixpath.dirname(f), ([], []))[0].append(f)
@@ -276,10 +328,15 @@ def plan_one(model_id: str) -> Dict[str, str]:
         "task": "",
         "train_config": "",
         "model_file": "",
+        "parent_commit": "",
         "evidence": "",
         "blockers": "",
     }
     info = _get(f"{API}/models/{model_id}?blobs=true")
+    # The commit this plan describes. `apply` commits against it, so a
+    # repository that gained a meta.yaml in between is rejected by the Hub
+    # rather than overwritten.
+    row["parent_commit"] = info.get("sha", "")
     siblings = info.get("siblings", [])
     files = [s["rfilename"] for s in siblings if not s["rfilename"].startswith(".")]
     sizes = {s["rfilename"]: s.get("size") for s in siblings}
@@ -332,7 +389,8 @@ def plan_one(model_id: str) -> Dict[str, str]:
 
 
 def plan(out_path: str) -> None:
-    models = _get(f"{API}/models?author={ORG}&full=true&limit=1000")
+    """Write one row per model that has no meta.yaml, with its evidence."""
+    models = _get_paged(f"{API}/models?author={ORG}&full=true&limit=1000")
     unpacked = [
         m
         for m in models
@@ -351,6 +409,7 @@ def plan(out_path: str) -> None:
                     "task": "",
                     "train_config": "",
                     "model_file": "",
+                    "parent_commit": "",
                     "evidence": "",
                     "blockers": f"fetch error, not decided: {e}",
                 }
@@ -360,14 +419,7 @@ def plan(out_path: str) -> None:
     with open(out_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f,
-            fieldnames=[
-                "model",
-                "task",
-                "train_config",
-                "model_file",
-                "evidence",
-                "blockers",
-            ],
+            fieldnames=list(PLAN_COLUMNS),
         )
         writer.writeheader()
         writer.writerows(rows)
@@ -379,14 +431,29 @@ def plan(out_path: str) -> None:
 
 
 def apply(plan_path: str, dry_run: bool) -> int:
-    from huggingface_hub import HfApi
+    """Upload meta.yaml for the rows that are ready, and report the rest."""
+    from huggingface_hub import CommitOperationAdd, HfApi
 
     with open(plan_path, newline="", encoding="utf-8") as f:
-        rows = list(csv.DictReader(f))
+        reader = csv.DictReader(f)
+        # The plan is meant to be read and edited between the two commands, so
+        # a renamed or dropped column is ordinary input, not a traceback.
+        absent = set(APPLY_COLUMNS).difference(reader.fieldnames or [])
+        if absent:
+            print(
+                f"{plan_path} is missing the column(s): {', '.join(sorted(absent))}",
+                file=sys.stderr,
+            )
+            return 1
+        rows = list(reader)
     ready = [
         r
         for r in rows
-        if r["train_config"] and r["model_file"] and r["task"] and not r["blockers"]
+        if r["train_config"]
+        and r["model_file"]
+        and r["task"]
+        and r["parent_commit"]
+        and not r["blockers"]
     ]
     print(f"{len(ready)} of {len(rows)} rows are ready", file=sys.stderr)
     api = HfApi()
@@ -400,12 +467,16 @@ def apply(plan_path: str, dry_run: bool) -> int:
             print(f"--- {row['model']}\n{content}")
             continue
         try:
-            api.upload_file(
-                path_or_fileobj=content.encode(),
-                path_in_repo="meta.yaml",
+            # parent_commit is the revision `plan` read. The Hub refuses the
+            # commit if main has moved since, so a meta.yaml somebody added in
+            # the meantime is never replaced by this one.
+            api.create_commit(
                 repo_id=row["model"],
                 repo_type="model",
+                revision="main",
+                operations=[CommitOperationAdd("meta.yaml", content.encode())],
                 commit_message="Add meta.yaml so espnet_model_zoo can load this model",
+                parent_commit=row["parent_commit"],
             )
             print(f"uploaded {row['model']}")
         except Exception as e:  # the Hub's errors are many; each is one row
@@ -416,6 +487,7 @@ def apply(plan_path: str, dry_run: bool) -> int:
 
 
 def main(argv=None) -> int:
+    """The command line: `plan` writes the CSV, `apply` uploads from it."""
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("plan", help="write the plan as CSV")

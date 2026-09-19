@@ -286,8 +286,8 @@ cd egs2/wsj/asr1
 A model published by `./run.sh --stage 15` or `espnet2.bin.pack` carries a
 `meta.yaml` naming its training config and checkpoint, and that is the file
 `ModelDownloader` reads. A repository whose files were uploaded by hand has no
-such file, so loading it fails with a `FileNotFoundError` from inside the
-cache.
+such file, so loading it fails with a `RuntimeError` that lists the files the
+repository holds and asks you to pass `train_config` and `model_file` yourself.
 
 To find those and write the missing file:
 

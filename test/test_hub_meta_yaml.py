@@ -1,6 +1,7 @@
 import pytest
 
 from espnet_model_zoo.hub_meta_yaml import (
+    apply,
     checkpoint_rank,
     choose_pair,
     meta_yaml,
@@ -50,9 +51,12 @@ def test_a_checkpoint_in_the_next_directory_is_paired_but_flagged():
     assert split is True
 
 
-def test_nothing_to_pair():
+def test_nothing_to_pair_says_which_side_is_there():
     assert choose_pair(["README.md"]) == ("", "", False)
-    assert choose_pair(["config.yaml"]) == ("", "", False)
+    # the config is there and the checkpoint is not: the caller must not be
+    # told the config is missing
+    assert choose_pair(["config.yaml"]) == ("config.yaml", "", False)
+    assert choose_pair(["exp/a/40epoch.pth"]) == ("", "exp/a/40epoch.pth", False)
 
 
 def test_the_averaged_checkpoint_wins_and_the_resume_state_loses():
@@ -104,6 +108,19 @@ def test_a_path_the_config_writes_with_a_leading_dot_still_counts_as_present():
     assert missing_inputs(config, ["data/bpe.model"]) == []
 
 
+@pytest.mark.parametrize(
+    "value", ["/data/bpe.model", "../data/bpe.model", "data/../data/bpe.model"]
+)
+def test_a_path_outside_the_repository_is_still_missing(value):
+    # lstrip("./") would turn each of these into "data/bpe.model" and call it
+    # present; normalising both sides keeps them apart
+    missing = missing_inputs({"bpemodel": value}, ["data/bpe.model"])
+    if value == "data/../data/bpe.model":
+        assert missing == []  # the same file, spelled the long way round
+    else:
+        assert missing == [f"bpemodel={value}"]
+
+
 def test_the_keys_are_the_ones_the_inference_class_takes():
     assert "asr_model_file: exp/a.pth" in meta_yaml("asr", "exp/c.yaml", "exp/a.pth")
     assert "asr_train_config: exp/c.yaml" in meta_yaml("asr", "exp/c.yaml", "exp/a.pth")
@@ -111,3 +128,21 @@ def test_the_keys_are_the_ones_the_inference_class_takes():
     generic = meta_yaml("enh", "config.yaml", "valid.loss.best.pth")
     assert "model_file: valid.loss.best.pth" in generic
     assert "train_config: config.yaml" in generic
+
+
+def test_a_plan_with_a_renamed_column_says_so(tmp_path, capsys):
+    plan = tmp_path / "plan.csv"
+    plan.write_text("model,task,train_config,checkpoint,parent_commit,blockers\n")
+    assert apply(str(plan), dry_run=True) == 1
+    assert "missing the column(s): model_file" in capsys.readouterr().err
+
+
+def test_a_row_without_the_planned_revision_is_not_applied(tmp_path, capsys):
+    plan = tmp_path / "plan.csv"
+    plan.write_text(
+        "model,task,train_config,model_file,parent_commit,evidence,blockers\n"
+        "espnet/x,asr,exp/c.yaml,exp/a.pth,,,\n"
+    )
+    assert apply(str(plan), dry_run=True) == 0
+    out = capsys.readouterr()
+    assert "0 of 1 rows are ready" in out.err
