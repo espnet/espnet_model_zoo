@@ -447,6 +447,50 @@ def _repair_gitattributes(api, model_id: str, dry_run: bool) -> None:
     )
 
 
+def why_the_hub_refused(card: str) -> Optional[str]:
+    """Name the front matter the Hub will not accept, or None.
+
+    `create_commit` answers "Invalid metadata in README.md." and stops
+    there, which leaves whoever is looking at 25 of those with nothing to
+    go on. Two checks between them account for every one seen so far:
+
+    - a key with no value. `language:` with nothing after it parses as
+      null, which the Hub rejects and which its own validator does not
+      catch, because loading the card drops the key before it is checked.
+    - a value the Hub's schema refuses: `language: noinfo`, a locale where
+      a language code belongs, a dataset named in prose. Its validator
+      says which, so it is asked rather than guessed at.
+
+    Called only after a push has already failed, so the extra request is
+    paid once per broken card and never on the ones that work.
+    """
+    front = split_front_matter(card)[0]
+    if not front:
+        return None
+    try:
+        import yaml
+
+        data = yaml.safe_load(front.strip().strip("-").strip()) or {}
+    except Exception:  # pragma: no cover - the Hub's message is all there is
+        return "the front matter is not valid YAML"
+    if not isinstance(data, dict):
+        # a list or a bare scalar between the fences parses without error
+        # and has no keys; saying so is the diagnosis
+        return "the front matter is not a mapping of keys to values"
+    empty = [k for k, v in data.items() if v is None or v == ""]
+    if empty:
+        keys = ", ".join(sorted(empty))
+        return f"the card's front matter leaves {keys} empty, which the Hub rejects"
+    try:
+        from huggingface_hub import ModelCard
+
+        ModelCard(card).validate(repo_type="model")
+    except Exception as e:
+        first = [ln.strip("- ") for ln in str(e).splitlines() if "Error:" in ln]
+        return first[0] if first else str(e).strip().splitlines()[0]
+    return None
+
+
 def apply(plan_path: str, dry_run: bool) -> int:
     """Push the snippets in a plan; returns the number of models that failed.
 
@@ -500,6 +544,16 @@ def apply(plan_path: str, dry_run: bool) -> int:
             )
         except Exception as e:  # keep going; the summary names every failure
             first = (str(e).strip().splitlines() or [type(e).__name__])[0]
+            if "Invalid metadata" in first:
+                # The card was already unpublishable before this tool saw it,
+                # and the Hub will not say which part. This runs inside the
+                # handler for another failure, so it may not raise one of its
+                # own: that would escape the loop and take the cards after
+                # this one with it, which is the opposite of the point.
+                try:
+                    first = why_the_hub_refused(locals().get("updated") or "") or first
+                except Exception as diagnosis_failed:  # pragma: no cover
+                    first = f"{first} (could not say why: {diagnosis_failed})"
             print(f"{mid}: FAILED {type(e).__name__}: {first}", file=sys.stderr)
             failed.append((mid, first))
     if failed:
