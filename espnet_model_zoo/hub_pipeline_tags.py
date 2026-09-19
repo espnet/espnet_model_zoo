@@ -23,8 +23,12 @@ that state on 2026-09-17.
 
 import argparse
 import csv
+import email.utils
+import math
 import re
 import sys
+import time
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
 import requests
@@ -109,22 +113,68 @@ class FetchError(RuntimeError):
     """A Hub request failed; the row it was for must stay undecided."""
 
 
+# A sweep of the organisation is two or three requests per model, which the
+# Hub answers with 429 well before it is done: 169 of 667 models came back
+# rate-limited in one run. Those must not reach the callers as FetchError,
+# because a rate-limited model is indistinguishable there from an unreadable
+# one and would spend the run's whole output on rows that say nothing.
+_RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
+_RETRIES = 5
+_MAX_RETRY_WAIT = 60.0
+
+
+def retry_delay(response: requests.Response, attempt: int) -> float:
+    """How long to wait before retrying ``response``.
+
+    Retry-After is either a count of seconds or an HTTP-date, and a server
+    may send neither or something malformed, so nothing here may depend on
+    it: a value that cannot be read falls back to the exponential backoff,
+    and every delay is capped, because this runs unattended over hundreds of
+    models and a server that asks for an hour would simply stall the sweep.
+    """
+    header = response.headers.get("Retry-After")
+    delay: Optional[float] = None
+    if header is not None:
+        try:
+            delay = float(header)
+        except ValueError:
+            try:
+                when = email.utils.parsedate_to_datetime(header)
+            except (TypeError, ValueError):
+                when = None
+            if when is not None:
+                if when.tzinfo is None:  # an HTTP-date without a zone is GMT
+                    when = when.replace(tzinfo=timezone.utc)
+                delay = (when - datetime.now(timezone.utc)).total_seconds()
+    if delay is None or math.isnan(delay):
+        delay = float(2**attempt)
+    return min(max(delay, 0.0), _MAX_RETRY_WAIT)
+
+
+def _request(url: str, timeout: float) -> requests.Response:
+    """GET ``url``, waiting out the Hub's rate limiting; raise FetchError."""
+    for attempt in range(_RETRIES):
+        try:
+            r = requests.get(url, timeout=timeout)
+            if r.status_code in _RETRY_STATUS and attempt < _RETRIES - 1:
+                time.sleep(retry_delay(r, attempt))
+                continue
+            r.raise_for_status()
+            return r
+        except requests.RequestException as e:
+            raise FetchError(f"{url}: {e}") from e
+    raise FetchError(f"{url}: still rate-limited after {_RETRIES} attempts")
+
+
 def _get(url: str, timeout: float = 60) -> dict:
     try:
-        r = requests.get(url, timeout=timeout)
-        r.raise_for_status()
-        return r.json()
-    except (requests.RequestException, ValueError) as e:
+        return _request(url, timeout).json()
+    except ValueError as e:
         raise FetchError(f"{url}: {e}") from e
 
 
 def _get_text(url: str, timeout: float = 60) -> str:
-    try:
-        r = requests.get(url, timeout=timeout)
-        r.raise_for_status()
-        return r.text
-    except requests.RequestException as e:
-        raise FetchError(f"{url}: {e}") from e
+    return _request(url, timeout).text
 
 
 def infer_from_meta(meta_yaml: Optional[str]) -> Optional[Tuple[str, str]]:
