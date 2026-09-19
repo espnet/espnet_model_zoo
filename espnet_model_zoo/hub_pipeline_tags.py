@@ -25,6 +25,7 @@ import argparse
 import csv
 import re
 import sys
+import time
 from typing import Dict, List, Optional, Tuple
 
 import requests
@@ -109,22 +110,40 @@ class FetchError(RuntimeError):
     """A Hub request failed; the row it was for must stay undecided."""
 
 
+# A sweep of the organisation is two or three requests per model, which the
+# Hub answers with 429 well before it is done: 169 of 667 models came back
+# rate-limited in one run. Those must not reach the callers as FetchError,
+# because a rate-limited model is indistinguishable there from an unreadable
+# one and would spend the run's whole output on rows that say nothing.
+_RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
+_RETRIES = 5
+
+
+def _request(url: str, timeout: float) -> requests.Response:
+    """GET ``url``, waiting out the Hub's rate limiting; raise FetchError."""
+    for attempt in range(_RETRIES):
+        try:
+            r = requests.get(url, timeout=timeout)
+            if r.status_code in _RETRY_STATUS and attempt < _RETRIES - 1:
+                # Retry-After is seconds; the Hub does not always send it
+                time.sleep(float(r.headers.get("Retry-After", 2**attempt)))
+                continue
+            r.raise_for_status()
+            return r
+        except requests.RequestException as e:
+            raise FetchError(f"{url}: {e}") from e
+    raise FetchError(f"{url}: still rate-limited after {_RETRIES} attempts")
+
+
 def _get(url: str, timeout: float = 60) -> dict:
     try:
-        r = requests.get(url, timeout=timeout)
-        r.raise_for_status()
-        return r.json()
-    except (requests.RequestException, ValueError) as e:
+        return _request(url, timeout).json()
+    except ValueError as e:
         raise FetchError(f"{url}: {e}") from e
 
 
 def _get_text(url: str, timeout: float = 60) -> str:
-    try:
-        r = requests.get(url, timeout=timeout)
-        r.raise_for_status()
-        return r.text
-    except requests.RequestException as e:
-        raise FetchError(f"{url}: {e}") from e
+    return _request(url, timeout).text
 
 
 def infer_from_meta(meta_yaml: Optional[str]) -> Optional[Tuple[str, str]]:

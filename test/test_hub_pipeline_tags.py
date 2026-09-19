@@ -85,6 +85,44 @@ def test_files_beat_names():
     assert tag == "text-to-speech" and evidence.startswith("file")
 
 
+def test_rate_limiting_is_waited_out_rather_than_reported_as_a_failure(monkeypatch):
+    from espnet_model_zoo import hub_pipeline_tags as hpt
+
+    class _Response:
+        def __init__(self, status_code):
+            self.status_code = status_code
+            self.headers = {"Retry-After": "0"}
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise hpt.requests.HTTPError(str(self.status_code))
+
+        def json(self):
+            return {"ok": True}
+
+    answers = [_Response(429), _Response(503), _Response(200)]
+    monkeypatch.setattr(hpt.requests, "get", lambda url, timeout: answers.pop(0))
+    monkeypatch.setattr(hpt.time, "sleep", lambda seconds: None)
+    assert hpt._get("https://example/x") == {"ok": True}
+    assert not answers
+
+
+def test_rate_limiting_that_never_lets_up_is_a_fetch_error(monkeypatch):
+    from espnet_model_zoo import hub_pipeline_tags as hpt
+
+    class _Limited:
+        status_code = 429
+        headers: dict = {}
+
+        def raise_for_status(self):
+            raise hpt.requests.HTTPError("429")
+
+    monkeypatch.setattr(hpt.requests, "get", lambda url, timeout: _Limited())
+    monkeypatch.setattr(hpt.time, "sleep", lambda seconds: None)
+    with pytest.raises(hpt.FetchError):
+        hpt._get("https://example/x")
+
+
 def test_a_failed_hub_fetch_leaves_the_row_undecided(monkeypatch):
     from espnet_model_zoo import hub_pipeline_tags as hpt
 
