@@ -281,6 +281,26 @@ cd egs2/wsj/asr1
 1. (Administrator does) Release new version
 
 
+### A model uploaded by hand
+
+A model published by `./run.sh --stage 15` or `espnet2.bin.pack` carries a
+`meta.yaml` naming its training config and checkpoint, and that is the file
+`ModelDownloader` reads. A repository whose files were uploaded by hand has no
+such file, so loading it fails with a `RuntimeError` that lists the files the
+repository holds and asks you to pass `train_config` and `model_file` yourself.
+
+To find those and write the missing file:
+
+```sh
+python -m espnet_model_zoo.hub_meta_yaml plan --out meta_plan.csv
+# read the CSV; the `blockers` column says what is not ready and why
+python -m espnet_model_zoo.hub_meta_yaml apply --plan meta_plan.csv --dry-run
+python -m espnet_model_zoo.hub_meta_yaml apply --plan meta_plan.csv
+```
+
+`plan` needs no token and uploads nothing; `apply` needs write access to the
+organisation. Only `meta.yaml` is uploaded - no checkpoint is touched.
+
 ### Zenodo (Obsolete)
 
 1. Upload your model to Zenodo
