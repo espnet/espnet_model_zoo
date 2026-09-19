@@ -277,7 +277,18 @@ def plan(out_path: str) -> None:
 
 # Values the old ESPnet upload script wrote into ``language`` that the Hub's
 # validator now rejects: "noinfo" meant unknown, "jp" is not an ISO 639 code.
-_LANGUAGE_FIXES = {"noinfo": None, "jp": "ja"}
+# None means "remove the key". Every one of these is a card saying it does
+# not know the language, spelled a different way; a locale or a text variant
+# is not a language code either, and the language it implies is not ours to
+# write into someone else's metadata. A code that is merely misspelled is
+# mapped instead, which is what `jp` is doing here.
+_LANGUAGE_FIXES = {
+    "noinfo": None,
+    "en_unnorm": None,
+    "es-ES": None,
+    "zh-CN": None,
+    "jp": "ja",
+}
 
 
 def fix_language(value):
@@ -491,6 +502,125 @@ def fix_cards(model_ids: List[str], dry_run: bool) -> int:
     return len(failed)
 
 
+# The front matter keys whose values the Hub validates, and which a card in
+# this organisation has been seen to get wrong. Everything else is left
+# alone: this repairs what blocks a commit, it does not tidy cards.
+_VALIDATED_LIST_KEYS = ("datasets",)
+
+
+def _hub_rejects(card_text: str) -> List[str]:
+    """The front matter values the Hub will not accept, as it names them."""
+    from huggingface_hub import ModelCard
+
+    try:
+        ModelCard(card_text).validate(repo_type="model")
+    except Exception as e:
+        return [ln.strip("- ").strip() for ln in str(e).splitlines() if "Error:" in ln]
+    return []
+
+
+def drop_unpublishable_metadata(
+    data: dict, rejected: List[str]
+) -> Tuple[dict, List[str]]:
+    """Remove what the Hub refuses, and say what was removed.
+
+    Removed, never corrected. `language: noinfo` is a card saying it does
+    not know, and the repair that keeps that true is to say nothing; a code
+    guessed from the model's name would be this tool inventing a fact about
+    someone else's model. Same for a dataset named in prose: the id it meant
+    is not recoverable from "librispeech 960h" with any certainty worth
+    writing into metadata. A code that is merely misspelled is a different
+    case and is mapped rather than dropped - see `_LANGUAGE_FIXES`, which
+    the pipeline-tag pass applies.
+
+    A key with no value at all is removed too, and needs no help from the
+    Hub to find: `language:` followed by nothing parses as null, which the
+    Hub rejects and its own validator misses, because loading a card drops
+    the key before anything is checked.
+    """
+    notes = []
+    for key in [k for k, v in data.items() if v is None or v == ""]:
+        del data[key]
+        notes.append(f"dropped empty {key}")
+    for error in rejected:
+        m = re.search(r'"([a-z_0-9]+)(?:\[(\d+)\])?" with value "([^"]*)"', error)
+        if not m:
+            continue
+        key, index, value = m.group(1), m.group(2), m.group(3)
+        if key not in data:
+            continue
+        if index is not None and key in _VALIDATED_LIST_KEYS:
+            # one bad entry in a list: the valid ids beside it are kept
+            data[key] = [x for x in data[key] if str(x) != value]
+            notes.append(f"dropped {key} entry {value!r}")
+            if not data[key]:
+                del data[key]
+                notes.append(f"dropped empty {key}")
+        else:
+            del data[key]
+            notes.append(f"dropped {key}: {value!r}")
+    return data, notes
+
+
+def repair_metadata(model_ids: List[str], dry_run: bool) -> int:
+    """Drop front matter the Hub refuses, so the card can be committed to.
+
+    A card whose metadata the Hub rejects cannot receive any commit at all -
+    not a usage example, not a pipeline tag, nothing - and the only thing it
+    says is "Invalid metadata in README.md.". These are cards published years
+    ago against a schema that has since tightened.
+    """
+    from huggingface_hub import CommitOperationAdd, HfApi, ModelCard
+
+    api = HfApi()
+    failed = []
+    for mid in model_ids:
+        try:
+            local = api.hf_hub_download(repo_id=mid, filename="README.md")
+            with open(local, encoding="utf-8") as f:
+                text = f.read()
+            card = ModelCard(text)
+            data = card.data.to_dict()
+            # to_dict() drops a key whose value is null, so the empty ones
+            # are read from the card's own YAML rather than from the parse
+            for key, value in _front_matter_keys(text).items():
+                data.setdefault(key, value)
+            data, notes = drop_unpublishable_metadata(data, _hub_rejects(text))
+            if not notes:
+                print(f"{mid}: nothing to do")
+                continue
+            print(f"{mid}: {'; '.join(notes)}")
+            if dry_run:
+                continue
+            card.data = type(card.data)(**data)
+            api.create_commit(
+                repo_id=mid,
+                repo_type="model",
+                operations=[CommitOperationAdd("README.md", str(card).encode("utf-8"))],
+                commit_message="Drop model card metadata the Hub rejects",
+            )
+        except Exception as e:
+            first = (str(e).strip().splitlines() or [type(e).__name__])[0]
+            print(f"{mid}: FAILED {type(e).__name__}: {first}", file=sys.stderr)
+            failed.append(mid)
+    if failed:
+        print(f"\n{len(failed)} failed: " + ", ".join(failed), file=sys.stderr)
+    return len(failed)
+
+
+def _front_matter_keys(card_text: str) -> dict:
+    """Every top-level key the card's YAML holds, null values included."""
+    import yaml
+
+    m = re.match(r"\A---[ \t]*\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|\Z)", card_text, re.S)
+    if not m:
+        return {}
+    try:
+        return yaml.safe_load(m.group(1)) or {}
+    except Exception:  # pragma: no cover - an unparseable card is not ours to fix
+        return {}
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -506,12 +636,21 @@ def main() -> None:
     )
     sf.add_argument("--models", required=True, help="comma-separated model ids")
     sf.add_argument("--dry-run", action="store_true")
+    sr = sub.add_parser(
+        "repair-metadata",
+        help="drop front matter the Hub refuses, so the card accepts commits",
+    )
+    sr.add_argument("--models", required=True, help="comma-separated model ids")
+    sr.add_argument("--dry-run", action="store_true")
     a = p.parse_args()
     if a.cmd == "plan":
         plan(a.out)
     elif a.cmd == "fix-cards":
         ids = [m.strip() for m in a.models.split(",") if m.strip()]
         sys.exit(1 if fix_cards(ids, a.dry_run) else 0)
+    elif a.cmd == "repair-metadata":
+        ids = [m.strip() for m in a.models.split(",") if m.strip()]
+        sys.exit(1 if repair_metadata(ids, a.dry_run) else 0)
     else:
         sys.exit(1 if apply(a.plan, a.dry_run) else 0)
 

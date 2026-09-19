@@ -276,3 +276,54 @@ def test_hub_reads_card_accepts_a_card_data_object():
             return {"language": "en"}
 
     assert hub_reads_card(_Info(Data()))
+
+
+def test_a_language_that_says_unknown_is_dropped_not_guessed():
+    from espnet_model_zoo.hub_pipeline_tags import drop_unpublishable_metadata
+
+    data = {"tags": ["espnet"], "language": "noinfo", "license": "cc-by-4.0"}
+    errors = ['Error: "language" with value "noinfo" is not valid.']
+    out, notes = drop_unpublishable_metadata(dict(data), errors)
+    assert "language" not in out
+    assert out["tags"] == ["espnet"] and out["license"] == "cc-by-4.0"
+    assert notes == ["dropped language: 'noinfo'"]
+
+
+def test_a_key_with_no_value_needs_no_help_from_the_hub():
+    from espnet_model_zoo.hub_pipeline_tags import drop_unpublishable_metadata
+
+    # the Hub's own validator misses this one: loading a card drops the key
+    # before anything is checked, so it is found locally and with no errors
+    out, notes = drop_unpublishable_metadata({"language": None, "license": "mit"}, [])
+    assert out == {"license": "mit"}
+    assert notes == ["dropped empty language"]
+
+
+def test_one_bad_dataset_does_not_take_the_good_ones_with_it():
+    from espnet_model_zoo.hub_pipeline_tags import drop_unpublishable_metadata
+
+    data = {"datasets": ["librispeech_asr", "librispeech 960h"]}
+    errors = ['Error: "datasets[1]" with value "librispeech 960h" is not valid.']
+    out, notes = drop_unpublishable_metadata(data, errors)
+    assert out == {"datasets": ["librispeech_asr"]}
+    assert notes == ["dropped datasets entry 'librispeech 960h'"]
+
+
+def test_a_list_left_empty_goes_too():
+    from espnet_model_zoo.hub_pipeline_tags import drop_unpublishable_metadata
+
+    data = {"datasets": ["accented french (openslr56)"], "license": "cc-by-4.0"}
+    errors = [
+        'Error: "datasets[0]" with value "accented french (openslr56)" is not valid.'
+    ]
+    out, notes = drop_unpublishable_metadata(data, errors)
+    assert out == {"license": "cc-by-4.0"}
+    assert notes[-1] == "dropped empty datasets"
+
+
+def test_a_card_the_hub_accepts_is_left_exactly_as_it_is():
+    from espnet_model_zoo.hub_pipeline_tags import drop_unpublishable_metadata
+
+    data = {"tags": ["espnet"], "language": "en", "license": "cc-by-4.0"}
+    out, notes = drop_unpublishable_metadata(dict(data), [])
+    assert out == data and notes == []
