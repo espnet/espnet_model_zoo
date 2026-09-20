@@ -52,16 +52,16 @@ from espnet_model_zoo.hub_pipeline_tags import (
 SNIPPET_CLASS = {
     "asr": "espnet2.bin.asr_inference.Speech2Text",
     "s2t": "espnet2.bin.s2t_inference.Speech2Text",
-    "s2t_ctc": "espnet2.bin.s2t_inference_ctc.Speech2TextGreedySearch",
+    "s2t_ctc": "espnet2.bin.s2t_inference.Speech2Text",
     "tts": "espnet2.bin.tts_inference.Text2Speech",
     "enh": "espnet2.bin.enh_inference.SeparateSpeech",
     "spk": "espnet2.bin.spk_inference.Speech2Embedding",
 }
 
-# The `espnet` console script of espnet 202610, for the tasks it covers.
-# `espnet asr` loads Speech2TextGreedySearch and nothing else, so it serves
-# OWSM-CTC and not the other recognisers; there is no speaker subcommand.
-# `espnet models` names the default model of each subcommand.
+# The `espnet` console script, for the tasks it covers. `espnet asr` loads
+# s2t_inference.Speech2Text, which takes either kind of OWSM checkpoint, so
+# the same line serves the CTC models and the encoder-decoder ones; there is
+# no speaker subcommand. `espnet models` names the default of each.
 CLI_COMMAND = {
     "s2t_ctc": "espnet asr audio.wav --model {tag} --language eng",
     "tts": 'espnet tts "Hello from ESPnet" -o out.wav --model {tag}',
@@ -92,13 +92,18 @@ speech, rate = librosa.load("audio.wav", sr=16000, mono=True)
 text, token, token_int, text_nospecial, hyp = s2t(speech)[0]
 print(text_nospecial)  # `text` keeps OWSM's own <eng><asr> markers
 # for a recording longer than 30 s: s2t.decode_long(speech) -> (start, end, text)""",
-    # batch_decode takes the audio path itself and handles long-form audio by
-    # chunking it, which is what makes OWSM-CTC worth using from Python.
-    "s2t_ctc": """from espnet2.bin.s2t_inference_ctc import Speech2TextGreedySearch
+    # decode_long takes the audio path itself and handles a recording of any
+    # length by chunking it, which is what makes OWSM-CTC worth using from
+    # Python. It decodes on the CTC head with no search; calling the object
+    # instead runs a CTC prefix beam search, which is far slower.
+    # Needs espnet>=202610.post1: before that these lived on
+    # s2t_inference_ctc.Speech2TextGreedySearch, which still forwards here.
+    "s2t_ctc": """from espnet2.bin.s2t_inference import Speech2Text
 
-s2t = Speech2TextGreedySearch.from_pretrained(model_tag="{tag}")
+s2t = Speech2Text.from_pretrained(model_tag="{tag}")
 # <eng>, <jpn>, ... ; OWSM models also accept <nolang> to detect the language
-print(s2t.batch_decode("audio.wav", lang_sym="<eng>", task_sym="<asr>"))""",
+segments = s2t.decode_long("audio.wav", lang_sym="<eng>", task_sym="<asr>")
+print(" ".join(text for _, _, text in segments))""",
     "tts": """import soundfile as sf
 from espnet2.bin.tts_inference import Text2Speech
 
