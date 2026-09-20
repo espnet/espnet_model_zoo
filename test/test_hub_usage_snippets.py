@@ -63,7 +63,9 @@ CARD = FRONT_MATTER + "\n## ESPnet2 ASR model\n\nThis model was trained by X.\n"
     [
         ("asr", "espnet2.bin.asr_inference.Speech2Text"),
         ("s2t", "espnet2.bin.s2t_inference.Speech2Text"),
-        ("s2t_ctc", "espnet2.bin.s2t_inference_ctc.Speech2TextGreedySearch"),
+        # one class for both kinds of OWSM checkpoint since 202610.post1;
+        # s2t_inference_ctc still forwards, with a DeprecationWarning
+        ("s2t_ctc", "espnet2.bin.s2t_inference.Speech2Text"),
         ("tts", "espnet2.bin.tts_inference.Text2Speech"),
         ("enh", "espnet2.bin.enh_inference.SeparateSpeech"),
         ("spk", "espnet2.bin.spk_inference.Speech2Embedding"),
