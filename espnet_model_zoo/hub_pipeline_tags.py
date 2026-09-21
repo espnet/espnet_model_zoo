@@ -14,7 +14,8 @@ tag someone set by hand alone) and repairs the language codes the Hub's
 validator rejects. Of the models it attempts it names every one that failed,
 and exits non-zero if any did; a row whose tag the plan left empty is not
 attempted and not named, so the CSV is where those are recorded. `--dry-run`
-runs the Hub's validator without writing.
+writes nothing and runs the Hub's validator on the cards it would have
+changed - not on the ones it skips as empty or already tagged.
 `apply` needs a token with write access to the organisation (`hf auth
 login`); `plan` needs no token.
 
@@ -377,9 +378,11 @@ def apply(plan_path: str, dry_run: bool) -> int:
 
     Every row carrying a tag is tried: a card the Hub rejects (an invalid
     value elsewhere in its metadata, say) is reported and the run goes on. A
-    row whose tag is empty is not in `rows` at all. ``--dry-run``
-    still loads each card and runs the Hub's validator on the result, so it
-    shows the failures without writing anything.
+    row whose tag is empty is not in `rows` at all. ``--dry-run`` still loads
+    each card and, for the ones it would have changed, runs the Hub's
+    validator on the result, so it shows those failures without writing
+    anything. An empty or already-tagged repository is skipped before that,
+    so nothing validates it either way.
     """
     from huggingface_hub import HfApi, ModelCard
     from huggingface_hub.errors import EntryNotFoundError
