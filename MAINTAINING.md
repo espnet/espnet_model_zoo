@@ -12,18 +12,31 @@ them in bulk.
 
 Each tool has two steps:
 
-| | Needs a token | Writes anything |
+| | Needs a token | Writes |
 | :-- | :-- | :-- |
-| `plan` | no | no — a CSV you read and edit |
-| `apply` | yes, write access to the organization (`hf auth login`) | metadata only, never a checkpoint |
+| `plan` | no | nothing — a CSV you read and edit |
+| `apply` | yes, write access to the organization (`hf auth login`) | one small file per model |
 
 `plan` writes one row per model with the evidence behind its decision, and leaves the
-decision empty when nothing settles it. Edit the CSV before applying it. `apply --dry-run`
-runs the Hub's validator without pushing. Each tool reports every model it could not
-update and exits non-zero if any failed — read that list rather than the exit code alone.
+decision empty when nothing settles it. Edit the CSV before applying it.
 
-Because only metadata moves, running one of these across the whole organization is cheap:
-no weights are re-uploaded.
+No weights are ever re-uploaded, which is what makes running one of these across the whole
+organization cheap. What `apply` writes differs: `hub_meta_yaml` adds a `meta.yaml`,
+`hub_pipeline_tags` rewrites a card's front matter, and `hub_usage_snippets` edits the
+card's body — that one commits model-card content, not just metadata.
+
+`--dry-run` also differs, and only one of the three validates:
+
+| | `--dry-run` does |
+| :-- | :-- |
+| `hub_meta_yaml` | prints the `meta.yaml` it would upload |
+| `hub_pipeline_tags` | runs the Hub's validator on the changed card |
+| `hub_usage_snippets` | prints the edit and stops before the commit; no validation |
+
+Each tool prints the models that failed while it was working and exits non-zero if any
+did — read that list rather than the exit code alone. Rows a `plan` marked as blocked are
+a separate matter: `apply` never attempts them, so they appear in neither list. They stay
+in the plan CSV, which is the only place they are recorded.
 
 ## `hub_meta_yaml` — models that will not load
 
@@ -46,6 +59,8 @@ it with a `RuntimeError` listing the repository's files and asking the caller to
 What `meta.yaml` cannot fix is named in the **`blockers`** column: a config referring to a
 bpemodel or a normalisation statistics file the repository does not contain, or a
 checkpoint that is a dangling symlink. Those need the missing file, not this script.
+`apply` skips every row with a non-empty `blockers` and says nothing about them, so the
+CSV is where you find them.
 
 Nor does `meta.yaml` make an old model build against current espnet — a config written for
 a since-removed argument still fails, and the plan says nothing about that. Load the model
@@ -86,9 +101,10 @@ as `hub_pipeline_tags` — and inserts a runnable snippet between the front matt
 body, under a `## Usage` heading.
 
 It never writes twice: a card that already has a usage section, or that already calls
-`from_pretrained`, is left alone. The front matter is carried over byte for byte — the card
-is edited as text rather than re-serialised — and is checked to be unchanged before the
-push. A model whose task nothing decides, or whose task has no snippet that was checked
+`from_pretrained`, is left alone. The card is edited as text rather than re-serialised, so
+the front matter is carried over rather than regenerated, and the tool refuses to push if
+it changed. That check compares the two sides with trailing whitespace stripped, so it
+would not catch a difference in trailing whitespace alone. A model whose task nothing decides, or whose task has no snippet that was checked
 against released espnet, gets no snippet and a row saying why.
 
 ## Releasing
