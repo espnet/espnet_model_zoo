@@ -11,8 +11,10 @@ its name and tags. It writes one row per model with the evidence and leaves
 the tag empty when nothing decides it, so the CSV can be edited before
 `apply` rewrites each model card's front matter: it sets the tag (leaving a
 tag someone set by hand alone) and repairs the language codes the Hub's
-validator rejects. It reports every model it could not update and exits
-non-zero if any failed; `--dry-run` runs the Hub's validator without writing.
+validator rejects. Of the models it attempts it names every one that failed,
+and exits non-zero if any did; a row whose tag the plan left empty is not
+attempted and not named, so the CSV is where those are recorded. `--dry-run`
+runs the Hub's validator without writing.
 `apply` needs a token with write access to the organisation (`hf auth
 login`); `plan` needs no token.
 
@@ -373,8 +375,9 @@ def update_card_data(data: Dict, pipeline_tag: str) -> List[str]:
 def apply(plan_path: str, dry_run: bool) -> int:
     """Push the plan; returns the number of models that could not be updated.
 
-    Every model is tried: a card the Hub rejects (an invalid value elsewhere
-    in its metadata, say) is reported and the run goes on. ``--dry-run``
+    Every row carrying a tag is tried: a card the Hub rejects (an invalid
+    value elsewhere in its metadata, say) is reported and the run goes on. A
+    row whose tag is empty is not in `rows` at all. ``--dry-run``
     still loads each card and runs the Hub's validator on the result, so it
     shows the failures without writing anything.
     """
