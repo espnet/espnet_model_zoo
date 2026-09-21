@@ -1,74 +1,110 @@
+<div align="center">
+
 # ESPnet Model Zoo
 
-[![PyPI version](https://badge.fury.io/py/espnet-model-zoo.svg)](https://badge.fury.io/py/espnet-model-zoo)
-[![Python Versions](https://img.shields.io/pypi/pyversions/espnet_model_zoo.svg)](https://pypi.org/project/espnet_model_zoo/)
-[![Downloads](https://pepy.tech/badge/espnet_model_zoo)](https://pepy.tech/project/espnet_model_zoo)
-[![GitHub license](https://img.shields.io/github/license/espnet/espnet_model_zoo.svg)](https://github.com/espnet/espnet_model_zoo)
+### Pretrained [ESPnet](https://github.com/espnet/espnet) models, and the tools that keep them loadable
+
+[![PyPI](https://img.shields.io/pypi/v/espnet_model_zoo?color=%233775A9&logo=pypi&logoColor=white)](https://pypi.org/project/espnet_model_zoo/)
+[![Python](https://img.shields.io/pypi/pyversions/espnet_model_zoo.svg)](https://pypi.org/project/espnet_model_zoo/)
+[![Downloads](https://static.pepy.tech/badge/espnet_model_zoo/month)](https://pepy.tech/project/espnet_model_zoo)
+[![License](https://img.shields.io/github/license/espnet/espnet_model_zoo.svg?color=blue)](./LICENSE)
 [![Unitest](https://github.com/espnet/espnet_model_zoo/workflows/Unitest/badge.svg)](https://github.com/espnet/espnet_model_zoo/actions?query=workflow%3AUnitest)
 [![Model test](https://github.com/espnet/espnet_model_zoo/workflows/Model%20test/badge.svg)](https://github.com/espnet/espnet_model_zoo/actions?query=workflow%3A%22Model+test%22)
 [![codecov](https://codecov.io/gh/espnet/espnet_model_zoo/branch/master/graph/badge.svg)](https://codecov.io/gh/espnet/espnet_model_zoo)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-Utilities managing the pretrained models created by [ESPnet](https://github.com/espnet/espnet). This function is inspired by the [Asteroid pretrained model function](https://github.com/mpariente/asteroid/blob/master/docs/source/readmes/pretrained_models.md).
+**[Models on Hugging Face](https://huggingface.co/espnet)** ·
+**[Registered models](espnet_model_zoo/table.csv)** ·
+**[ESPnet](https://github.com/espnet/espnet)** ·
+**[ESPnet docs](https://espnet.github.io/espnet/)**
 
-- **From version 0.1.0, the huggingface models can be also used**: https://huggingface.co/models?filter=espnet
-- Zenodo community: https://zenodo.org/communities/espnet/
-- Registered models: [table.csv](espnet_model_zoo/table.csv)
+</div>
+
+______________________________________________________________________
+
+`espnet_model_zoo` downloads a pretrained ESPnet model, unpacks it, and hands the
+resulting paths to the matching `espnet2` inference class — so loading a model is one
+`from_pretrained` call rather than a checkpoint, a config and a token list to wire up
+yourself. The models live in the [espnet organization on Hugging
+Face](https://huggingface.co/espnet): 671 of them as of 2026-09-21, 624 carrying a
+`pipeline_tag` you can filter by. The design follows [Asteroid's pretrained model
+function](https://github.com/mpariente/asteroid/blob/master/docs/source/readmes/pretrained_models.md).
+
+> [!IMPORTANT]
+> Upgrade to **0.1.11** or later. Releases before it resolved paths through every string
+> in a packed config, including the vocabulary, so a token that happened to name
+> something inside the cache — OWSM's `.` and `exp`, for instance — was rewritten into an
+> absolute path and came back in the transcript. 0.1.11 stops doing it and repairs a
+> cache an older version already damaged, on load, with no re-download.
 
 ## Install
 
-```
-pip install torch
-pip install espnet_model_zoo
+```sh
+pip install torch                # first, per https://pytorch.org/get-started/locally/
+pip install espnet_model_zoo     # brings espnet with it
 ```
 
-## Python API for inference
-`model_name` in the following section should be `huggingface_id` or one of the tags in the [table.csv](espnet_model_zoo/table.csv).
-Or you can directly provide zenodo URL (e.g., `https://zenodo.org/record/xxxxxxx/files/hogehoge.zip?download=1`).
+## Quick start
 
-### ASR
+A model name is a Hugging Face id (`espnet/owsm_ctc_v4_1B`), a tag from
+[table.csv](espnet_model_zoo/table.csv), a local `.zip`, or a Zenodo URL. Every task
+follows the same `from_pretrained` shape:
 
 ```python
 import soundfile
 from espnet2.bin.asr_inference import Speech2Text
+
+speech2text = Speech2Text.from_pretrained("model_name")
+speech, rate = soundfile.read("speech.wav")   # at the model's training sample rate
+text, *_ = speech2text(speech)[0]
+print(text)
+```
+
+```python
+import soundfile
+from espnet2.bin.tts_inference import Text2Speech
+
+text2speech = Text2Speech.from_pretrained("model_name")
+speech = text2speech("foobar")["wav"]
+soundfile.write("out.wav", speech.numpy(), text2speech.fs, "PCM_16")
+```
+
+```python
+import soundfile
+from espnet2.bin.enh_inference import SeparateSpeech
+
+separate_speech = SeparateSpeech.from_pretrained("model_name")
+speech, rate = soundfile.read("long_speech.wav")
+waves = separate_speech(speech[None, ...], fs=rate)
+```
+
+Resample your audio to the rate the model was trained at; nothing does it for you.
+
+<details>
+<summary>Decoding and segmentation parameters</summary>
+
+Decoding parameters are not stored in the model file, so pass them to
+`from_pretrained`:
+
+```python
 speech2text = Speech2Text.from_pretrained(
     "model_name",
-    # Decoding parameters are not included in the model file
     maxlenratio=0.0,
     minlenratio=0.0,
     beam_size=20,
     ctc_weight=0.3,
     lm_weight=0.5,
     penalty=0.0,
-    nbest=1
+    nbest=1,
 )
-# Confirm the sampling rate is equal to that of the training corpus.
-# If not, you need to resample the audio data before inputting to speech2text
-speech, rate = soundfile.read("speech.wav")
-nbests = speech2text(speech)
-
-text, *_ = nbests[0]
-print(text)
 ```
 
-### TTS
+`SeparateSpeech` handles both short and long audio. Segment-wise processing is off by
+default; `segment_size` and `hop_size` turn it on, and `normalize_segment_scale` and
+`show_progressbar` tune it:
 
 ```python
-import soundfile
-from espnet2.bin.tts_inference import Text2Speech
-text2speech = Text2Speech.from_pretrained("model_name")
-speech = text2speech("foobar")["wav"]
-soundfile.write("out.wav", speech.numpy(), text2speech.fs, "PCM_16")
-```
-
-### Speech separation
-
-```python
-import soundfile
-from espnet2.bin.enh_inference import SeparateSpeech
 separate_speech = SeparateSpeech.from_pretrained(
     "model_name",
-    # for segment-wise process on long speech
     segment_size=2.4,
     hop_size=0.8,
     normalize_segment_scale=False,
@@ -76,16 +112,12 @@ separate_speech = SeparateSpeech.from_pretrained(
     ref_channel=None,
     normalize_output_wav=True,
 )
-# Confirm the sampling rate is equal to that of the training corpus.
-# If not, you need to resample the audio data before inputting to speech2text
-speech, rate = soundfile.read("long_speech.wav")
-waves = separate_speech(speech[None, ...], fs=rate)
 ```
 
-This API allows processing both short audio samples and long audio samples. For long audio samples, you can set the value of arguments segment_size, hop_size (optionally normalize_segment_scale and show_progressbar) to perform segment-wise speech enhancement/separation on the input speech. Note that the segment-wise processing is disabled by default.
+</details>
 
-
-<details><summary>For old ESPnet (<=10.1) </summary><div>
+<details>
+<summary>The API before ESPnet 0.10.1</summary>
 
 ### ASR
 
@@ -135,110 +167,71 @@ separate_speech = SeparateSpeech(
     normalize_output_wav=True,
 )
 ```
-</div></details>
 
+</details>
 
-## Instruction for ModelDownloader
+## Find a model
+
+Filter the [Hugging Face organization](https://huggingface.co/espnet) by task, or query
+[table.csv](espnet_model_zoo/table.csv) locally:
 
 ```python
 from espnet_model_zoo.downloader import ModelDownloader
-d = ModelDownloader("~/.cache/espnet")  # Specify cachedir
-d = ModelDownloader()  # ~/.cache/espnet_model_zoo by default; Hugging Face models go to the huggingface_hub cache
+
+d = ModelDownloader()
+d.query("name")                    # every registered name
+d.query("name", task="asr")        # narrowed by any column of table.csv
 ```
 
-To obtain a model, you need to give a `huggingface_id`model` or a tag , which is listed in [table.csv](espnet_model_zoo/table.csv).
+```sh
+espnet_model_zoo_query                              # all names
+espnet_model_zoo_query task=asr corpus=wsj          # narrowed
+espnet_model_zoo_query --key url task=asr corpus=wsj
+```
+
+## Download and cache
+
+```python
+from espnet_model_zoo.downloader import ModelDownloader
+
+d = ModelDownloader()                    # ~/.cache/espnet_model_zoo; Hugging Face
+                                         # models go to the huggingface_hub cache
+d = ModelDownloader("~/.cache/espnet")   # or choose the directory
+```
+
+`download_and_unpack` returns the paths an inference class needs, and skips the work if
+the model is already there:
 
 ```python
 >>> d.download_and_unpack("kamo-naoyuki/mini_an4_asr_train_raw_bpe_valid.acc.best")
 {"asr_train_config": <config path>, "asr_model_file": <model path>, ...}
 ```
 
-You can specify the revision if it's huggingface_id giving with `@`:
+It takes the same four kinds of name as `from_pretrained`, plus a query:
 
 ```python
->>> d.download_and_unpack("kamo-naoyuki/mini_an4_asr_train_raw_bpe_valid.acc.best@<revision>")
-{"asr_train_config": <config path>, "asr_model_file": <model path>, ...}
+d.download_and_unpack("kamo-naoyuki/mini_an4_...@<revision>")  # a Hub revision
+d.download_and_unpack("https://zenodo.org/record/...")         # a URL
+d.download_and_unpack("./some/where/model.zip")                # a local file
+d.download_and_unpack(task="asr", corpus="wsj")                # a query: last match
+d.download_and_unpack(task="asr", corpus="wsj", version=-2)    # the one before it
 ```
 
-Note that if the model already exists, you can skip downloading and unpacking.
+A local file is unpacked into the cache too, and is identified by its path — move it and
+unpack again and it is treated as a different model, expanded a second time.
 
-You can also get a model with certain conditions.
+If a model was uploaded to the Hub by hand rather than by a recipe, it has no `meta.yaml`
+saying which file is the config and which is the checkpoint. `download_and_unpack` then
+fails with a `RuntimeError` listing the repository's files, and you pass `train_config`
+and `model_file` yourself. Tell us which model it was — repairing those in place is a
+maintainer job, described in [MAINTAINING.md](MAINTAINING.md).
 
-```python
-d.download_and_unpack(task="asr", corpus="wsj")
+```sh
+espnet_model_zoo_download <model_name>                # prints the downloaded file
+espnet_model_zoo_download --unpack true <model_name>  # prints the unpacked files
 ```
 
-If multiple models are found with the condition, the last model is selected.
-You can also specify the condition using "version" option.
-
-```python
-d.download_and_unpack(task="asr", corpus="wsj", version=-1)  # Get the last model
-d.download_and_unpack(task="asr", corpus="wsj", version=-2)  # Get previous model
-```
-
-You can also obtain it from the URL directly.
-
-```python
-d.download_and_unpack("https://zenodo.org/record/...")
-```
-
-If you need to use a local model file using this API, you can also give it.
-
-```python
-d.download_and_unpack("./some/where/model.zip")
-```
-
-In this case, the contents are also expanded in the cache directory,
-but the model is identified by the file path,
-so if you move the model to somewhere and unpack again,
-it's treated as another model,
-thus the contents are expanded again at another place.
-
-## Query model names
-
-You can view the model names from our Zenodo community, https://zenodo.org/communities/espnet/,
-or using `query()`.  All information are written in [table.csv](espnet_model_zoo/table.csv).
-
-```python
-d.query("name")
-```
-
-You can also show them with specifying certain conditions.
-
-```python
-d.query("name", task="asr")
-```
-
-## Command line tools
-
-- `espnet_model_zoo_query`
-
-    ```sh
-    # Query model name
-    espnet_model_zoo_query task=asr corpus=wsj
-    # Show all model name
-    espnet_model_zoo_query
-    # Query the other key
-    espnet_model_zoo_query --key url task=asr corpus=wsj
-    ```
-- `espnet_model_zoo_download`
-
-    ```sh
-    espnet_model_zoo_download <model_name>  # Print the path of the downloaded file
-    espnet_model_zoo_download --unpack true <model_name>   # Print the path of unpacked files
-    ```
-- `espnet_model_zoo_upload`
-
-    ```sh
-    export ACCESS_TOKEN=<access_token>
-    espnet_zenodo_upload \
-        --file <packed_model> \
-        --title <title> \
-        --description <description> \
-        --creator_name <your-git-account>
-    ```
-
-## Use pretrained model in ESPnet recipe
+## Use a model in an ESPnet recipe
 
 ```sh
 # e.g. ASR WSJ task
@@ -248,60 +241,51 @@ cd egs2/wsj/asr1
 ./run.sh --skip_data_prep false --skip_train true --download_model kamo-naoyuki/wsj
 ```
 
-## Register your model
+## Publish your model
 
-### Huggingface
-1. Upload your model using huggingface API
+Upload from the recipe that trained it, then register it here.
 
-    1. (if you do not have an HF hub account) Go to https://huggingface.co and create an HF account by clicking a `sign up` button below.
-    ![image](https://user-images.githubusercontent.com/11741550/147585941-af1a7e88-934e-4e24-b30e-4b120dbc023a.png)
-    2. From a [new model](https://huggingface.co/new) link in the profile, create a new model repository. Please include a recipe name (e.g., aidatatang_200zh) and model info (e.g., conformer) in the repository name
-    ![image](https://user-images.githubusercontent.com/11741550/147586093-51c98c53-6d23-45a0-b359-14a4489cc970.png)
-    3. In the espnet recipe, execute the following command:
-    ```
-    ./run.sh --stage 15 --skip_upload_hf false --hf_repo sw005320/aidatatang_200zh_conformer
-    ```
-    4. Please follow the instruction (e.g., type the HF Username/Password)
-    5. If it works successfully, you can get the following messages
-    ![image](https://user-images.githubusercontent.com/11741550/147586699-a3bb5a49-8b59-417d-b376-4d1ec270fb71.png)
+1. Create a [Hugging Face account](https://huggingface.co) and a
+   [new model repository](https://huggingface.co/new). Name it after the recipe and the
+   model, e.g. `aidatatang_200zh_conformer`.
+2. From the recipe, push the trained model:
 
-1. Create a Pull Request to modify [table.csv](espnet_model_zoo/table.csv)
+   ```sh
+   ./run.sh --stage 15 --skip_upload_hf false --hf_repo <user>/aidatatang_200zh_conformer
+   ```
 
-    The model can be registered in [table.csv](https://github.com/espnet/espnet_model_zoo/blob/master/espnet_model_zoo/table.csv).
-    Then, the model will be tested in the CI.
-    Note that, unlike the zenodo case, you don't need to add the URL because huggingface_id itself can specify the model file, so please fill the value as `https://huggingface.co/`.
+   The stage number is the upload stage of that task's pipeline — 15 for `asr1`, other
+   tasks differ, so check `./run.sh --help`.
+3. Open a pull request adding a row to
+   [table.csv](https://github.com/espnet/espnet_model_zoo/blob/master/espnet_model_zoo/table.csv),
+   so the model is covered by CI. A Hugging Face id identifies the model by itself, so
+   the `url` column is just `https://huggingface.co/`:
 
-    e.g. `table.csv`
+   ```
+   aidatatang_200zh,asr,sw005320/aidatatang_200zh_conformer,https://huggingface.co/,16000,zh,,,,,true
+   ```
+4. An administrator increments the third version number in [setup.py](setup.py) and
+   releases.
 
-    ```
-    ...
-    aidatatang_200zh,asr,sw005320/aidatatang_200zh_conformer,https://huggingface.co/,16000,zh,,,,,true
-    ```
-1. (Administrator does) Increment the third version number of [setup.py](setup.py), e.g. 0.0.3 -> 0.0.4
-1. (Administrator does) Release new version
+<details>
+<summary>Screenshots of the Hub steps</summary>
 
+Creating an account:
 
-### A model uploaded by hand
+![sign up](https://user-images.githubusercontent.com/11741550/147585941-af1a7e88-934e-4e24-b30e-4b120dbc023a.png)
 
-A model published by `./run.sh --stage 15` or `espnet2.bin.pack` carries a
-`meta.yaml` naming its training config and checkpoint, and that is the file
-`ModelDownloader` reads. A repository whose files were uploaded by hand has no
-such file, so loading it fails with a `RuntimeError` that lists the files the
-repository holds and asks you to pass `train_config` and `model_file` yourself.
+Creating the model repository:
 
-To find those and write the missing file:
+![new model](https://user-images.githubusercontent.com/11741550/147586093-51c98c53-6d23-45a0-b359-14a4489cc970.png)
 
-```sh
-python -m espnet_model_zoo.hub_meta_yaml plan --out meta_plan.csv
-# read the CSV; the `blockers` column says what is not ready and why
-python -m espnet_model_zoo.hub_meta_yaml apply --plan meta_plan.csv --dry-run
-python -m espnet_model_zoo.hub_meta_yaml apply --plan meta_plan.csv
-```
+A successful upload:
 
-`plan` needs no token and uploads nothing; `apply` needs write access to the
-organisation. Only `meta.yaml` is uploaded - no checkpoint is touched.
+![success](https://user-images.githubusercontent.com/11741550/147586699-a3bb5a49-8b59-417d-b376-4d1ec270fb71.png)
 
-### Zenodo (Obsolete)
+</details>
+
+<details>
+<summary>Zenodo (obsolete)</summary>
 
 1. Upload your model to Zenodo
 
@@ -314,3 +298,21 @@ organisation. Only `meta.yaml` is uploaded - no checkpoint is touched.
     You need to append your record at the last line.
 1. (Administrator does) Increment the third version number of [setup.py](setup.py), e.g. 0.0.3 -> 0.0.4
 1. (Administrator does) Release new version
+
+```sh
+export ACCESS_TOKEN=<access_token>
+espnet_model_zoo_upload \
+    --file <packed_model> \
+    --title <title> \
+    --description <description> \
+    --creator_name <your-git-account>
+```
+
+</details>
+
+______________________________________________________________________
+
+<div align="center">
+Maintaining the Hugging Face organization: <a href="MAINTAINING.md">MAINTAINING.md</a> ·
+Released under the <a href="./LICENSE">Apache 2.0 License</a>.
+</div>
