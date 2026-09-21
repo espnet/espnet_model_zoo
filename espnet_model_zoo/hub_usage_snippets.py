@@ -17,10 +17,11 @@ against released espnet, gets no snippet and a row saying why.
 `apply` inserts the snippet between the card's front matter and its body,
 under a `## Usage` heading, and pushes it. It never writes twice: a card that
 already has a usage section, or that already calls `from_pretrained`, is left
-alone. The front matter is carried over byte for byte - the card is edited as
-text rather than re-serialised - and is checked to be unchanged before the
-push. `apply` needs a token with write access to the organisation (`hf auth
-login`); `plan` needs no token.
+alone. The card is edited as text rather than re-serialised, so the front
+matter is carried over rather than regenerated, and the push is refused if it
+changed - a guard that compares the two sides stripped of trailing whitespace,
+so that much alone would not trip it. `apply` needs a token with write access
+to the organisation (`hf auth login`); `plan` needs no token.
 
 A card that is a recipe dump with no example is the organisation's normal
 case: of the 643 cards on the Hub on 2026-09-19, 614 had neither a usage
