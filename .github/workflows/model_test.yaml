@@ -15,7 +15,11 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.12"]
-        espnet-version: ["git+https://github.com/espnet/espnet.git"]
+        # The extra belongs in the requirement: a bare espnet install carries
+        # inference dependencies only, and the TTS models here need pyworld,
+        # g2p_en, jaconv and pypinyin. Installing `espnet[tts]` as a second
+        # step would pull espnet from PyPI over the one just installed.
+        espnet-version: ["espnet[tts] @ git+https://github.com/espnet/espnet.git"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
