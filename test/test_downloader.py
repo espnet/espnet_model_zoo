@@ -122,6 +122,30 @@ def test_table_row_with_full_hub_url_is_downloaded_from_hub(tmp_path, monkeypatc
     assert d.download_and_unpack(marker_tag) == {"cache_dir": marker_tag}
 
 
+def test_table_row_with_bare_hub_marker_url_keeps_its_name(tmp_path, monkeypatch):
+    # Four table.csv rows hold "https://huggingface.co/" - the marker with a
+    # trailing slash - as their url. Read as a full repository URL, its empty
+    # tail became the repo id and snapshot_download rejected "".
+    tag = "reazon-research/reazonspeech-espnet-v1"
+    d = ModelDownloader(tmp_path)
+    assert d.get_url(tag) == "https://huggingface.co/"
+    seen = []
+
+    def fake_huggingface_download(name=None, **kw):
+        seen.append(name)
+        return name
+
+    monkeypatch.setattr(d, "huggingface_download", fake_huggingface_download)
+    monkeypatch.setattr(
+        d,
+        "_unpack_cache_dir_for_huggingface",
+        lambda cache_dir: {"cache_dir": cache_dir},
+    )
+    assert d.download_and_unpack(tag) == {"cache_dir": tag}
+    assert d.download(tag) == tag
+    assert seen == [tag, tag]
+
+
 def _fake_snapshot(root: Path):
     # The shape of a packed espnet model as huggingface_hub lays it out: a
     # meta.yaml naming the config and weights, a config whose paths are
