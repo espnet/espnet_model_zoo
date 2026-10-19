@@ -111,13 +111,18 @@ def _resolve_huggingface(name, url):
     test here, download() then recognised it and returned a snapshot
     directory, and download_and_unpack() tried to unpack that directory as an
     archive. All three now come out as (repo_id, "https://huggingface.co/").
+
+    A row whose url is the marker itself, "https://huggingface.co/", is the
+    first shape, not the third: the URL names no repository, so the id stays
+    the name. Taking the empty tail as the id sent "" to snapshot_download.
     """
     for candidate in (name, url):
         if isinstance(candidate, str) and candidate.startswith(
             "https://huggingface.co/"
         ):
-            repo_id = candidate[len("https://huggingface.co/") :]
-            return repo_id, "https://huggingface.co/"
+            repo_id = candidate[len("https://huggingface.co/") :].strip("/")
+            if repo_id:
+                return repo_id, "https://huggingface.co/"
     return name, url
 
 
