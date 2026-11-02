@@ -18,6 +18,6 @@ repos:
     -   id: black
 
 -   repo: https://github.com/pycqa/isort
-    rev: 10.0.0b1
+    rev: 10.0.0b2
     hooks:
     -   id: isort
