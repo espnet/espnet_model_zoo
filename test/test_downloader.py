@@ -242,9 +242,9 @@ def test_paths_leading_out_of_the_snapshot_are_left_alone(tmp_path):
 
 
 class _FakeResponse:
-    def __init__(self, chunks, fail_after=None):
+    def __init__(self, chunks, fail_after=None, error=ConnectionError):
         self.headers = {"content-length": str(sum(len(c) for c in chunks))}
-        self._chunks, self._fail_after = chunks, fail_after
+        self._chunks, self._fail_after, self._error = chunks, fail_after, error
 
     def raise_for_status(self):
         pass
@@ -252,18 +252,26 @@ class _FakeResponse:
     def iter_content(self, chunk_size):
         for i, c in enumerate(self._chunks):
             if self._fail_after is not None and i == self._fail_after:
-                raise ConnectionError("cut")
+                raise self._error("cut")
             yield c
 
 
 class _FakeSession:
     response = None
+    # When set, each get() takes the next item: a response, or an exception
+    # to raise.
+    responses = None
 
     def mount(self, *a, **k):
         pass
 
     def get(self, url, stream, timeout):
-        return self.response
+        if _FakeSession.responses is None:
+            return self.response
+        item = _FakeSession.responses.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return item
 
 
 def test_download_writes_beside_the_target_and_renames(tmp_path, monkeypatch):
@@ -288,6 +296,57 @@ def test_interrupted_download_leaves_nothing_behind(tmp_path, monkeypatch):
         download("http://x/m.zip", out, quiet=True)
     assert not out.exists()
     assert list(tmp_path.iterdir()) == []  # the .part file is gone too
+
+
+def test_download_retries_a_body_cut_off_part_way(tmp_path, monkeypatch):
+    # The weekly model test lost a 680 MB archive to IncompleteRead after
+    # 22 MB; the adapter's retries never saw it because the cut came while
+    # reading the body.
+    import requests
+
+    from espnet_model_zoo import downloader
+
+    sleeps = []
+    monkeypatch.setattr(downloader.time, "sleep", sleeps.append)
+    monkeypatch.setattr(
+        _FakeSession,
+        "responses",
+        [
+            _FakeResponse(
+                [b"abc", b"def"],
+                fail_after=1,
+                error=requests.exceptions.ChunkedEncodingError,
+            ),
+            requests.exceptions.SSLError("hostname mismatch"),
+            _FakeResponse([b"abc", b"def"]),
+        ],
+    )
+    monkeypatch.setattr(requests, "Session", _FakeSession)
+    out = tmp_path / "m.zip"
+    with pytest.warns(UserWarning, match="retry"):
+        download("http://x/m.zip", out, quiet=True)
+    assert out.read_bytes() == b"abcdef"
+    assert list(tmp_path.iterdir()) == [out]
+    assert sleeps == [5.0, 10.0]
+
+
+def test_download_gives_up_after_the_last_retry(tmp_path, monkeypatch):
+    import requests
+
+    from espnet_model_zoo import downloader
+
+    monkeypatch.setattr(downloader.time, "sleep", lambda s: None)
+    monkeypatch.setattr(
+        _FakeSession,
+        "responses",
+        [requests.exceptions.ConnectionError("down") for _ in range(3)],
+    )
+    monkeypatch.setattr(requests, "Session", _FakeSession)
+    out = tmp_path / "m.zip"
+    with pytest.warns(UserWarning), pytest.raises(requests.exceptions.ConnectionError):
+        download("http://x/m.zip", out, retry=2, quiet=True)
+    assert _FakeSession.responses == []  # three attempts, no more
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_file_name_is_a_bare_name_whatever_the_server_says(monkeypatch):
