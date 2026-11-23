@@ -4,6 +4,7 @@ import os
 import re
 import shutil
 import tempfile
+import time
 import warnings
 from distutils.util import strtobool
 from pathlib import Path
@@ -46,10 +47,47 @@ def str_to_hash(string: Union[str, Path]) -> str:
     return hashlib.md5(str(string).encode("utf-8")).hexdigest()
 
 
+# A transfer that fails part way - the connection cut mid-body, a timeout, a
+# TLS handshake that briefly lands on the wrong certificate - is retried from
+# the start. HTTPAdapter's max_retries covers only the connection; a cut in
+# the body surfaces as ChunkedEncodingError while iterating and is not retried
+# there.
+_TRANSIENT = (
+    requests.exceptions.ConnectionError,
+    requests.exceptions.ChunkedEncodingError,
+    requests.exceptions.Timeout,
+)
+
+
 def download(
-    url, output_path, retry: int = 3, chunk_size: int = 8192, quiet: bool = False
+    url,
+    output_path,
+    retry: int = 3,
+    chunk_size: int = 8192,
+    quiet: bool = False,
+    backoff: float = 5.0,
 ):
-    # Set retry
+    """Download url to output_path, retrying the whole transfer on failure.
+
+    retry is the number of retries after the first attempt. Attempt n waits
+    backoff * 2 ** (n - 1) seconds before it starts.
+    """
+    for attempt in range(retry + 1):
+        if attempt > 0:
+            time.sleep(backoff * 2 ** (attempt - 1))
+        try:
+            _download_once(url, output_path, retry, chunk_size, quiet)
+            return
+        except _TRANSIENT as e:
+            if attempt == retry:
+                raise
+            warnings.warn(
+                f"Download of {url} failed ({type(e).__name__}: {e}); "
+                f"retry {attempt + 1}/{retry}"
+            )
+
+
+def _download_once(url, output_path, retry, chunk_size, quiet):
     session = requests.Session()
     session.mount("http://", requests.adapters.HTTPAdapter(max_retries=retry))
     session.mount("https://", requests.adapters.HTTPAdapter(max_retries=retry))
